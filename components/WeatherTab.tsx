@@ -5,7 +5,7 @@ import {
   MapPin, LocateFixed, Share2, Heart,
   Thermometer, CloudRain, Wind, Droplets,
   ArrowUpRight, Sun, Cloud, CloudSun, Moon, MoonStar,
-  Gauge, Eye, Sunrise, Sunset, Compass
+  Gauge, Eye, Sunrise
 } from 'lucide-react';
 import { WeatherData, AqiData } from '@/lib/types';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -18,7 +18,7 @@ interface WeatherTabProps {
 }
 
 export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }: WeatherTabProps) {
-  const { t } = useLanguage();
+  const { t, formatNum, localizeLocation, translateCondition } = useLanguage();
   const [forecastMode, setForecastMode] = useState<'hourly' | 'daily'>('hourly');
   const [isFavorited, setIsFavorited] = useState(false);
 
@@ -39,25 +39,17 @@ export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }
     const cls = size === 'lg' ? 'w-20 h-20' : size === 'sm' ? 'w-4 h-4' : 'w-6 h-6';
     const h = hour !== undefined ? hour : new Date().getHours();
 
-    // Rain / storm / drizzle always show regardless of time
     if (code >= 60) return <CloudRain className={`${cls} text-blue-500`} />;
-    // Heavy clouds
     if (code >= 3)  return <Cloud     className={`${cls} text-slate-400`} />;
-    // Partly cloudy  — day: CloudSun, night: cloudy moon
     if (code >= 2) {
       if (h >= 7 && h < 18) return <CloudSun className={`${cls} text-sky-500`} />;
       return <MoonStar className={`${cls} text-indigo-300`} />;
     }
-    // Clear (code 0 or 1) — time-based icon
-    // 4 AM – 6 AM: rising/crescent moon (pre-dawn)
     if (h >= 4 && h < 7)  return <MoonStar className={`${cls} text-indigo-200`} />;
-    // 7 AM – 6 PM: Sun
     if (h >= 7 && h < 18) return <Sun      className={`${cls} text-yellow-500`} />;
-    // 6 PM – 4 AM: full moon
     return <Moon className={`${cls} text-indigo-300`} />;
   };
 
-  // Descriptive condition translation if available
   const getConditionDescription = () => {
     if (weather.current.conditionCode >= 60) return t('rain_desc');
     if (weather.current.conditionCode <= 1) return t('clear_sky_desc');
@@ -76,20 +68,27 @@ export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }
     return t('wind_strong');
   };
 
-  return (
-    <div className="w-full text-white">
+  const formatDay = (displayDay: string) => {
+    if (displayDay === 'Today') return t('day_today');
+    const d = displayDay.toLowerCase();
+    const key = `day_${d}`;
+    const trans = t(key);
+    return trans !== key ? trans : displayDay;
+  };
 
-      {/* ── Location header with crisp WHITE TITLE matching hazard/emergency tabs ── */}
+  return (
+    <div className="w-full">
+      {/* ── Location header with crisp WHITE TITLE ── */}
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <MapPin className="w-6 h-6 text-cyan-400 drop-shadow" />
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white drop-shadow-md">
-              {weather.locationName} — {t('weather_title')}
+              {localizeLocation(weather.locationName)} — {t('weather_title')}
             </h1>
           </div>
           <p className="text-sm font-medium text-slate-300 ml-8 drop-shadow">
-            {t('weather_subtitle')} · Open-Meteo High-Resolution Atmospheric Model
+            {t('weather_subtitle')} · Open-Meteo
           </p>
         </div>
 
@@ -97,21 +96,21 @@ export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }
           <button
             onClick={onLocateMe}
             disabled={isLoadingLocate}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#28323f]/95 hover:bg-[#323d4c] border border-white/15 text-sm font-semibold text-white transition shadow-lg"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/85 hover:bg-white border border-slate-200/90 text-sm font-semibold text-slate-800 transition shadow-sm"
           >
-            <LocateFixed className={`w-4 h-4 text-cyan-400 ${isLoadingLocate ? 'animate-spin' : ''}`} />
+            <LocateFixed className={`w-4 h-4 text-cyan-600 ${isLoadingLocate ? 'animate-spin' : ''}`} />
             {isLoadingLocate ? t('locating') : t('locate_me')}
           </button>
           <button
             onClick={() => setIsFavorited(!isFavorited)}
-            className="p-2.5 rounded-xl bg-[#28323f]/95 hover:bg-[#323d4c] border border-white/15 text-white transition shadow-lg"
+            className="p-2.5 rounded-xl bg-white/85 hover:bg-white border border-slate-200/90 text-slate-700 transition shadow-sm"
             title="Save location"
           >
-            <Heart className={`w-4 h-4 ${isFavorited ? 'fill-red-500 text-red-500' : 'text-slate-300'}`} />
+            <Heart className={`w-4 h-4 ${isFavorited ? 'fill-red-500 text-red-500' : 'text-slate-400'}`} />
           </button>
           <button
             onClick={() => navigator.share?.({ title: `${weather.locationName} Weather`, url: window.location.href })}
-            className="p-2.5 rounded-xl bg-[#28323f]/95 hover:bg-[#323d4c] border border-white/15 text-slate-300 hover:text-white transition shadow-lg"
+            className="p-2.5 rounded-xl bg-white/85 hover:bg-white border border-slate-200/90 text-slate-600 hover:text-slate-900 transition shadow-sm"
             title={t('share')}
           >
             <Share2 className="w-4 h-4" />
@@ -135,13 +134,13 @@ export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }
             <div>
               <div className="flex items-start leading-none">
                 <span className="text-7xl font-black text-slate-800 font-mono tracking-tight">
-                  {weather.current.temp}
+                  {formatNum(weather.current.temp)}
                 </span>
                 <span className="text-4xl font-light text-slate-500 mt-2">°C</span>
               </div>
               <div className="flex items-center gap-3 mt-2 text-sm text-slate-500 font-medium">
-                <span>↑ {weather.current.tempMax}°</span>
-                <span>↓ {weather.current.tempMin}°</span>
+                <span>↑ {formatNum(weather.current.tempMax)}°</span>
+                <span>↓ {formatNum(weather.current.tempMin)}°</span>
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${tempBadge.color}`}>
                   {tempBadge.label}
                 </span>
@@ -149,14 +148,16 @@ export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }
             </div>
 
             <div className="border-l border-slate-200 pl-8 space-y-2">
-              <p className="text-xl font-bold text-slate-700">{weather.current.conditionText}</p>
+              <p className="text-xl font-bold text-slate-700">
+                {translateCondition(weather.current.conditionText, weather.current.conditionCode)}
+              </p>
               <div className="flex items-center gap-2 text-sm text-slate-600">
                 <Thermometer className="w-4 h-4 text-slate-400" />
-                {t('feels_like')} <strong className="ml-1 text-slate-800">{weather.current.feelsLike}°C</strong>
+                {t('feels_like')} <strong className="ml-1 text-slate-800">{formatNum(weather.current.feelsLike)}°C</strong>
               </div>
               <div className="flex items-center gap-2 text-sm text-slate-600">
                 <CloudRain className="w-4 h-4 text-cyan-500" />
-                {t('rain_chance')} <strong className="ml-1 text-slate-800">{weather.current.chancesOfRain}%</strong>
+                {t('rain_chance')} <strong className="ml-1 text-slate-800">{formatNum(weather.current.chancesOfRain)}%</strong>
               </div>
             </div>
           </div>
@@ -190,7 +191,7 @@ export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }
               </div>
               <div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-slate-800 font-mono">{aqi.aqi}</span>
+                  <span className="text-2xl font-bold text-slate-800 font-mono">{formatNum(aqi.aqi)}</span>
                   <span className="text-xs font-semibold text-slate-500">AQI</span>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{aqi.summary}</p>
@@ -206,7 +207,7 @@ export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }
                 <div>
                   <span className="text-xs font-semibold text-slate-500 block">{t('humidity')}</span>
                   <div className="flex items-baseline gap-0.5">
-                    <span className="text-2xl font-bold text-slate-800 font-mono">{weather.current.humidity}</span>
+                    <span className="text-2xl font-bold text-slate-800 font-mono">{formatNum(weather.current.humidity)}</span>
                     <span className="text-xs font-semibold text-slate-500">%</span>
                   </div>
                 </div>
@@ -226,7 +227,7 @@ export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }
                 <Wind className="w-4 h-4 text-sky-500" />
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold text-slate-800 font-mono">{weather.current.windSpeed}</span>
+                <span className="text-2xl font-bold text-slate-800 font-mono">{formatNum(weather.current.windSpeed)}</span>
                 <span className="text-xs font-medium text-slate-500">km/h</span>
               </div>
               <p className="text-[10px] text-slate-500 mt-1 line-clamp-1">
@@ -241,11 +242,11 @@ export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }
                 <Gauge className="w-4 h-4 text-indigo-500" />
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold text-slate-800 font-mono">{weather.current.pressure}</span>
+                <span className="text-2xl font-bold text-slate-800 font-mono">{formatNum(weather.current.pressure)}</span>
                 <span className="text-xs font-medium text-slate-500">hPa</span>
               </div>
               <p className="text-[10px] text-slate-500 mt-1 line-clamp-1">
-                {weather.current.pressure >= 1010 ? t('pressure_normal') : 'Low Barometric Depression'}
+                {weather.current.pressure >= 1010 ? t('pressure_normal') : t('barometric_depression')}
               </p>
             </div>
 
@@ -256,13 +257,13 @@ export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }
                 <Sun className="w-4 h-4 text-amber-500" />
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold text-slate-800 font-mono">{weather.current.uvIndex ?? 5}</span>
+                <span className="text-2xl font-bold text-slate-800 font-mono">{formatNum(weather.current.uvIndex ?? 5)}</span>
                 <span className="text-xs font-medium text-emerald-600 font-semibold">
                   {(weather.current.uvIndex ?? 5) <= 2 ? 'Low' : (weather.current.uvIndex ?? 5) <= 5 ? 'Moderate' : 'High'}
                 </span>
               </div>
               <p className="text-[10px] text-slate-500 mt-1 line-clamp-1">
-                Daylight solar radiation
+                {t('solar_radiation_desc')}
               </p>
             </div>
 
@@ -273,7 +274,7 @@ export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }
                 <Eye className="w-4 h-4 text-teal-500" />
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold text-slate-800 font-mono">10+</span>
+                <span className="text-2xl font-bold text-slate-800 font-mono">{formatNum(10)}+</span>
                 <span className="text-xs font-medium text-slate-500">km</span>
               </div>
               <p className="text-[10px] text-slate-500 mt-1 line-clamp-1">
@@ -290,17 +291,17 @@ export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }
               </div>
               <div>
                 <span className="text-xs font-bold text-slate-700 block">{t('sun_marine_window')}</span>
-                <span className="text-[11px] text-slate-500">Coastal Marine Navigation Daylight Cycle</span>
+                <span className="text-[11px] text-slate-500">{t('marine_daylight_cycle')}</span>
               </div>
             </div>
             <div className="flex items-center gap-5 text-right font-mono">
               <div>
                 <span className="text-[10px] uppercase font-semibold text-slate-500 block">{t('first_light')}</span>
-                <span className="text-sm font-bold text-slate-800">05:48 AM</span>
+                <span className="text-sm font-bold text-slate-800">{formatNum('05:48 AM')}</span>
               </div>
               <div className="border-l border-slate-200 pl-5">
                 <span className="text-[10px] uppercase font-semibold text-slate-500 block">{t('sunset')}</span>
-                <span className="text-sm font-bold text-slate-800">06:54 PM</span>
+                <span className="text-sm font-bold text-slate-800">{formatNum('06:54 PM')}</span>
               </div>
             </div>
           </div>
@@ -336,13 +337,14 @@ export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }
               <div className="space-y-4">
                 <div className="grid grid-cols-6 gap-2">
                   {weather.hourly.slice(0, 6).map((h, i) => {
-                    // Extract the actual hour from the time string (e.g. "2026-09-04T23:00")
                     const slotHour = h.time ? new Date(h.time).getHours() : new Date().getHours();
                     return (
                       <div key={i} className="flex flex-col items-center py-3 px-1 rounded-xl bg-slate-50 border border-slate-200 text-center hover:border-cyan-400 transition">
-                        <span className="text-[11px] font-semibold text-slate-500 mb-2">{h.displayTime}</span>
+                        <span className="text-[11px] font-semibold text-slate-500 mb-2">
+                          {h.displayTime === 'Now' ? t('time_now') : formatNum(h.displayTime)}
+                        </span>
                         <WeatherIcon code={h.conditionCode} hour={slotHour} size="sm" />
-                        <span className="text-xs font-bold text-slate-800 font-mono mt-2">{h.temp}°</span>
+                        <span className="text-xs font-bold text-slate-800 font-mono mt-2">{formatNum(h.temp)}°</span>
                       </div>
                     );
                   })}
@@ -351,7 +353,7 @@ export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }
                 <div className="grid grid-cols-6 text-center text-[10px] text-slate-500 font-medium">
                   {weather.hourly.slice(0, 6).map((h, i) => (
                     <span key={i} className="flex items-center justify-center gap-0.5">
-                      <CloudRain className="w-2.5 h-2.5 text-blue-400" />{h.rainChance}%
+                      <CloudRain className="w-2.5 h-2.5 text-blue-400" />{formatNum(h.rainChance)}%
                     </span>
                   ))}
                 </div>
@@ -363,14 +365,14 @@ export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }
               <div className="space-y-2">
                 {weather.daily.map((d, i) => (
                   <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
-                    <span className="w-14 text-xs font-semibold text-slate-700">{d.displayDay}</span>
+                    <span className="w-14 text-xs font-semibold text-slate-700">{formatDay(d.displayDay)}</span>
                     <div className="flex items-center gap-1.5">
                       <WeatherIcon code={d.conditionCode} size="sm" />
-                      <span className="text-xs text-slate-500">{d.conditionText}</span>
+                      <span className="text-xs text-slate-500">{translateCondition(d.conditionText, d.conditionCode)}</span>
                     </div>
                     <div className="flex gap-3 font-mono text-xs">
-                      <span className="font-bold text-slate-800">{d.tempMax}°</span>
-                      <span className="text-slate-400">{d.tempMin}°</span>
+                      <span className="font-bold text-slate-800">{formatNum(d.tempMax)}°</span>
+                      <span className="text-slate-400">{formatNum(d.tempMin)}°</span>
                     </div>
                   </div>
                 ))}
@@ -381,8 +383,8 @@ export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }
 
       </div>
 
-      <p className="mt-6 text-xs text-slate-300 drop-shadow italic">
-        {t('last_updated')}: {weather.lastUpdated}
+      <p className="mt-6 text-xs text-slate-500 drop-shadow italic">
+        {t('last_updated')}: {formatNum(weather.lastUpdated)}
       </p>
     </div>
   );

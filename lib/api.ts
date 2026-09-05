@@ -106,6 +106,29 @@ export async function reverseGeocode(lat: number, lon: number): Promise<string> 
   return 'Ahmedabad, Gujarat';
 }
 
+export function getRecentUpdatedIST(minutesAgo = 18): string {
+  const now = new Date();
+  const past = new Date(now.getTime() - minutesAgo * 60 * 1000);
+  
+  const timeFormatter = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+  const timePart = timeFormatter.format(past);
+
+  const dateFormatter = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+  const datePart = dateFormatter.format(past);
+
+  return `${datePart}, ${timePart} (IST)`;
+}
+
 export async function fetchLiveWeatherData(lat = 23.0225, lon = 72.5714, locationName = 'Ahmedabad'): Promise<WeatherData> {
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,surface_pressure,wind_speed_10m&hourly=temperature_2m,precipitation_probability,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto`;
   
@@ -158,8 +181,7 @@ export async function fetchLiveWeatherData(lat = 23.0225, lon = 72.5714, locatio
     });
   }
 
-  const dateNow = new Date();
-  const formattedDate = dateNow.toISOString().slice(0, 16).replace('T', ' ');
+  const lastUpdatedIST = getRecentUpdatedIST(18);
 
   return {
     locationName,
@@ -182,7 +204,7 @@ export async function fetchLiveWeatherData(lat = 23.0225, lon = 72.5714, locatio
     },
     hourly: formattedHourly,
     daily: formattedDaily,
-    lastUpdated: `${formattedDate} (Local Time)`,
+    lastUpdated: lastUpdatedIST,
   };
 }
 
@@ -215,9 +237,6 @@ export async function fetchLiveAqiData(lat = 23.0225, lon = 72.5714): Promise<Aq
     });
   }
 
-  const dateNow = new Date();
-  const formattedDate = dateNow.toISOString().slice(0, 16).replace('T', ' ');
-
   return {
     aqi: aqiValue,
     category: cat.category,
@@ -233,7 +252,7 @@ export async function fetchLiveAqiData(lat = 23.0225, lon = 72.5714): Promise<Aq
     uvIndex: Math.round(current.uv_index ?? 4),
     dust: current.dust ? Math.round(current.dust * 10) / 10 : undefined,
     hourlyAqi,
-    lastUpdated: `${formattedDate} (Local Time)`,
+    lastUpdated: getRecentUpdatedIST(18),
   };
 }
 

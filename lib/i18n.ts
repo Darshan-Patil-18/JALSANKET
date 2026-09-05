@@ -1,3 +1,5 @@
+import { extendedTranslations } from './i18n_extended';
+
 export interface TranslationDict {
   [key: string]: string;
 }
@@ -1393,3 +1395,11 @@ export const translations: Record<string, TranslationDict> = {
     emergency_alert_info: 'SOS دبانے سے فوری طور پر آپ کا لائیو مقام کوسٹ گارڈ کو پہنچ جائے گا۔',
   },
 };
+
+// Merge extended multilingual translations
+Object.entries(extendedTranslations).forEach(([lang, dict]) => {
+  if (translations[lang]) {
+    Object.assign(translations[lang], dict);
+  }
+});
+

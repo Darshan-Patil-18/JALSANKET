@@ -4,7 +4,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { FishingZone } from '@/lib/types';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Layers, Map as MapIcon, Globe, Mountain } from 'lucide-react';
+import { Map as MapIcon, Globe, Mountain } from 'lucide-react';
+import { useLanguage } from '@/lib/LanguageContext';
 
 interface FishingMapProps {
   zone: FishingZone;
@@ -20,17 +21,18 @@ const TILE_LAYERS: Record<MapLayerType, { url: string; attribution: string; maxZ
   },
   satellite: {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+    attribution: 'Tiles &copy; Esri',
     maxZoom: 18,
   },
   terrain: {
     url: 'https://tile.opentopomap.org/{z}/{x}/{y}.png',
-    attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a>',
+    attribution: 'Map data: &copy; OpenStreetMap, SRTM | Map style: &copy; OpenTopoMap',
     maxZoom: 17,
   },
 };
 
 export default function FishingMap({ zone }: FishingMapProps) {
+  const { t, formatNum } = useLanguage();
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<L.Map | null>(null);
   const currentTileLayerRef = useRef<L.TileLayer | null>(null);
@@ -50,7 +52,6 @@ export default function FishingMap({ zone }: FishingMapProps) {
         attributionControl: false,
       });
 
-      // Default OpenStreetMap keyless tile layer
       const tile = L.tileLayer(TILE_LAYERS.street.url, {
         maxZoom: TILE_LAYERS.street.maxZoom,
         attribution: TILE_LAYERS.street.attribution,
@@ -74,7 +75,7 @@ export default function FishingMap({ zone }: FishingMapProps) {
     const shoreIcon = L.divIcon({
       className: 'custom-shore-pin',
       html: `
-        <div style="background-color: #0284c7; border: 2px solid white; border-radius: 9999px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.5);">
+        <div style="background-color: #0284c7; border: 2px solid white; border-radius: 9999px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.4);">
           <div style="width: 8px; height: 8px; background-color: white; border-radius: 9999px;"></div>
         </div>
       `,
@@ -86,7 +87,7 @@ export default function FishingMap({ zone }: FishingMapProps) {
     const fishIcon = L.divIcon({
       className: 'custom-fish-pin',
       html: `
-        <div style="background-color: #06b6d4; border: 2px solid white; border-radius: 9999px; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(6,182,212,0.7);">
+        <div style="background-color: #06b6d4; border: 2px solid white; border-radius: 9999px; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(6,182,212,0.6);">
           <div style="width: 6px; height: 6px; background-color: #083344; border-radius: 9999px;"></div>
         </div>
       `,
@@ -102,19 +103,19 @@ export default function FishingMap({ zone }: FishingMapProps) {
     ];
 
     const polygon = L.polygon(triangleCoords, {
-      color: '#06b6d4',
+      color: '#0891b2',
       weight: 3,
       opacity: 0.95,
-      fillColor: '#0891b2',
+      fillColor: '#06b6d4',
       fillOpacity: 0.35,
       dashArray: '6, 6',
     }).addTo(map);
 
     polygonRef.current = polygon;
 
-    // Add Markers with Distance Tooltips for each of the 3 points
+    // Add Markers with Distance Tooltips
     const m1 = L.marker(zone.shorePoint, { icon: shoreIcon })
-      .bindTooltip(`<b>Coastal Anchor Point</b><br/>${zone.distances.p1}`, {
+      .bindTooltip(`<b>${t('map_anchor_coastal')}</b><br/>${formatNum(zone.distances.p1)}`, {
         permanent: true,
         direction: 'top',
         className: 'custom-leaflet-tooltip',
@@ -122,7 +123,7 @@ export default function FishingMap({ zone }: FishingMapProps) {
       .addTo(map);
 
     const m2 = L.marker(zone.zoneP1, { icon: fishIcon })
-      .bindTooltip(`<b>PFZ Sector Alpha</b><br/>${zone.distances.p2}`, {
+      .bindTooltip(`<b>${t('map_pelagic_edge')}</b><br/>${formatNum(zone.distances.p2)}`, {
         permanent: true,
         direction: 'bottom',
         className: 'custom-leaflet-tooltip',
@@ -130,7 +131,7 @@ export default function FishingMap({ zone }: FishingMapProps) {
       .addTo(map);
 
     const m3 = L.marker(zone.zoneP2, { icon: fishIcon })
-      .bindTooltip(`<b>PFZ Sector Beta</b><br/>${zone.distances.p3}`, {
+      .bindTooltip(`<b>${t('map_upwelling_vector')}</b><br/>${formatNum(zone.distances.p3)}`, {
         permanent: true,
         direction: 'right',
         className: 'custom-leaflet-tooltip',
@@ -141,7 +142,7 @@ export default function FishingMap({ zone }: FishingMapProps) {
 
     // Fit map bounds gracefully
     map.fitBounds(polygon.getBounds(), { padding: [40, 40] });
-  }, [zone]);
+  }, [zone, t, formatNum]);
 
   // Handle Layer Switching without touching polygons/markers
   const handleSwitchLayer = (type: MapLayerType) => {
@@ -158,61 +159,60 @@ export default function FishingMap({ zone }: FishingMapProps) {
       attribution: cfg.attribution,
     }).addTo(leafletMapRef.current);
 
-    // Send new tile layer to back so polygon and markers remain on top
     newTile.bringToBack();
     currentTileLayerRef.current = newTile;
   };
 
   return (
-    <div className="relative w-full h-80 md:h-[400px] rounded-2xl overflow-hidden border border-white/15 shadow-2xl">
+    <div className="relative w-full h-80 md:h-[400px] rounded-2xl overflow-hidden border border-cyan-300/60 shadow-lg bg-sky-50">
       <div ref={mapRef} className="w-full h-full z-10" />
       
-      {/* Top-Right: Map Style Switcher (Keyless OSM / Esri Satellite / Terrain) */}
-      <div className="absolute top-3 right-3 z-20 flex items-center p-1 rounded-xl bg-slate-900/90 backdrop-blur-md border border-white/15 shadow-lg gap-1">
+      {/* Top-Right: Map Style Switcher */}
+      <div className="absolute top-3 right-3 z-20 flex items-center p-1 rounded-xl bg-white/85 backdrop-blur-md border border-slate-200/90 shadow-md gap-1">
         <button
           onClick={() => handleSwitchLayer('street')}
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
             activeLayer === 'street'
-              ? 'bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-500/30'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              ? 'bg-cyan-600 text-white font-bold shadow-sm'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
-          title="OpenStreetMap Standard (Free, Keyless)"
+          title="OpenStreetMap Standard"
         >
           <MapIcon className="w-3.5 h-3.5" />
-          <span>Street</span>
+          <span>{t('map_layer_street')}</span>
         </button>
 
         <button
           onClick={() => handleSwitchLayer('satellite')}
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
             activeLayer === 'satellite'
-              ? 'bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-500/30'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              ? 'bg-cyan-600 text-white font-bold shadow-sm'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
-          title="Esri World Imagery (Free, Keyless)"
+          title="Esri World Imagery"
         >
           <Globe className="w-3.5 h-3.5" />
-          <span>Satellite</span>
+          <span>{t('map_layer_satellite')}</span>
         </button>
 
         <button
           onClick={() => handleSwitchLayer('terrain')}
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
             activeLayer === 'terrain'
-              ? 'bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-500/30'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              ? 'bg-cyan-600 text-white font-bold shadow-sm'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
-          title="OpenTopoMap Terrain (Free, Keyless)"
+          title="OpenTopoMap Terrain"
         >
           <Mountain className="w-3.5 h-3.5" />
-          <span>Terrain</span>
+          <span>{t('map_layer_terrain')}</span>
         </button>
       </div>
 
       {/* Bottom-Left: Legend Tag */}
-      <div className="absolute bottom-3 left-3 z-20 bg-slate-950/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/15 text-[11px] font-semibold text-cyan-300 shadow-xl flex items-center gap-2">
-        <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
-        <span>PFZ Vector Triangle (ISRO Ocean Colour Track)</span>
+      <div className="absolute bottom-3 left-3 z-20 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-cyan-300 text-[11px] font-semibold text-cyan-800 shadow-md flex items-center gap-2">
+        <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse"></span>
+        <span>{t('map_legend_fishing')}</span>
       </div>
     </div>
   );

@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import {
-  MapPin, LocateFixed, Share2, Heart, Wind, Activity, Info,
-  ShieldCheck, AlertTriangle, Sparkles, Compass, Users, Anchor
+  MapPin, LocateFixed, Share2, Heart, Wind, Activity,
+  ShieldCheck, AlertTriangle, Users, Anchor
 } from 'lucide-react';
 import { AqiData, WeatherData } from '@/lib/types';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -16,7 +16,7 @@ interface AqiTabProps {
 }
 
 export default function AqiTab({ aqi, weather, onLocateMe, isLoadingLocate }: AqiTabProps) {
-  const { t } = useLanguage();
+  const { t, formatNum, localizeLocation } = useLanguage();
   const [isFavorited, setIsFavorited] = useState(false);
 
   const getStatusLabel = (status: string) => {
@@ -25,6 +25,8 @@ export default function AqiTab({ aqi, weather, onLocateMe, isLoadingLocate }: Aq
       case 'Moderate': return t('cat_moderate');
       case 'Poor': return t('cat_poor');
       case 'Unhealthy': return t('cat_unhealthy');
+      case 'Very Unhealthy': return t('cat_very_unhealthy');
+      case 'Hazardous': return t('cat_hazardous');
       default: return status;
     }
   };
@@ -37,7 +39,7 @@ export default function AqiTab({ aqi, weather, onLocateMe, isLoadingLocate }: Aq
       unit: 'µg/m³',
       safeMax: 30,
       status: aqi.pm25 <= 30 ? 'Good' : aqi.pm25 <= 60 ? 'Moderate' : 'Poor',
-      statusColor: aqi.pm25 <= 30 ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : aqi.pm25 <= 60 ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-red-600 bg-red-50 border-red-200'
+      statusColor: aqi.pm25 <= 30 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : aqi.pm25 <= 60 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-red-700 bg-red-50 border-red-200'
     },
     {
       code: 'PM10',
@@ -46,7 +48,7 @@ export default function AqiTab({ aqi, weather, onLocateMe, isLoadingLocate }: Aq
       unit: 'µg/m³',
       safeMax: 50,
       status: aqi.pm10 <= 50 ? 'Good' : aqi.pm10 <= 100 ? 'Moderate' : 'Poor',
-      statusColor: aqi.pm10 <= 50 ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : aqi.pm10 <= 100 ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-red-600 bg-red-50 border-red-200'
+      statusColor: aqi.pm10 <= 50 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : aqi.pm10 <= 100 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-red-700 bg-red-50 border-red-200'
     },
     {
       code: 'CO',
@@ -55,7 +57,7 @@ export default function AqiTab({ aqi, weather, onLocateMe, isLoadingLocate }: Aq
       unit: 'µg/m³',
       safeMax: 1000,
       status: aqi.co <= 1000 ? 'Good' : 'Moderate',
-      statusColor: 'text-emerald-600 bg-emerald-50 border-emerald-200'
+      statusColor: 'text-emerald-700 bg-emerald-50 border-emerald-200'
     },
     {
       code: 'SO₂',
@@ -64,7 +66,7 @@ export default function AqiTab({ aqi, weather, onLocateMe, isLoadingLocate }: Aq
       unit: 'µg/m³',
       safeMax: 40,
       status: aqi.so2 <= 40 ? 'Good' : 'Moderate',
-      statusColor: 'text-emerald-600 bg-emerald-50 border-emerald-200'
+      statusColor: 'text-emerald-700 bg-emerald-50 border-emerald-200'
     },
     {
       code: 'NO₂',
@@ -73,7 +75,7 @@ export default function AqiTab({ aqi, weather, onLocateMe, isLoadingLocate }: Aq
       unit: 'µg/m³',
       safeMax: 40,
       status: aqi.no2 <= 40 ? 'Good' : 'Moderate',
-      statusColor: 'text-emerald-600 bg-emerald-50 border-emerald-200'
+      statusColor: 'text-emerald-700 bg-emerald-50 border-emerald-200'
     },
     {
       code: 'O₃',
@@ -82,7 +84,7 @@ export default function AqiTab({ aqi, weather, onLocateMe, isLoadingLocate }: Aq
       unit: 'µg/m³',
       safeMax: 100,
       status: aqi.o3 <= 100 ? 'Good' : 'Moderate',
-      statusColor: 'text-emerald-600 bg-emerald-50 border-emerald-200'
+      statusColor: 'text-emerald-700 bg-emerald-50 border-emerald-200'
     },
   ];
 
@@ -96,40 +98,39 @@ export default function AqiTab({ aqi, weather, onLocateMe, isLoadingLocate }: Aq
   };
 
   return (
-    <div className="w-full text-white">
-
-      {/* ── Location header with crisp WHITE TITLE matching hazard/emergency tabs ── */}
+    <div className="w-full">
+      {/* ── Location header with crisp WHITE TITLE ── */}
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Wind className="w-6 h-6 text-cyan-400 drop-shadow" />
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white drop-shadow-md">
-              {weather.locationName} — {t('aqi_title')}
+              {localizeLocation(weather.locationName)} — {t('aqi_title')}
             </h1>
           </div>
           <p className="text-sm font-medium text-slate-300 ml-8 drop-shadow">
-            {t('aqi_subtitle')} · Real-time Particulate & Trace Gas Sensors
+            {t('aqi_subtitle')} · Open-Meteo
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={onLocateMe}
             disabled={isLoadingLocate}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#28323f]/95 hover:bg-[#323d4c] border border-white/15 text-sm font-semibold text-white transition shadow-lg"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/85 hover:bg-white border border-slate-200/90 text-sm font-semibold text-slate-800 transition shadow-sm"
           >
-            <LocateFixed className={`w-4 h-4 text-cyan-400 ${isLoadingLocate ? 'animate-spin' : ''}`} />
+            <LocateFixed className={`w-4 h-4 text-cyan-600 ${isLoadingLocate ? 'animate-spin' : ''}`} />
             {isLoadingLocate ? t('locating') : t('locate_me')}
           </button>
           <button
             onClick={() => setIsFavorited(!isFavorited)}
-            className="p-2.5 rounded-xl bg-[#28323f]/95 hover:bg-[#323d4c] border border-white/15 text-white transition shadow-lg"
+            className="p-2.5 rounded-xl bg-white/85 hover:bg-white border border-slate-200/90 text-slate-700 transition shadow-sm"
             title="Save location"
           >
-            <Heart className={`w-4 h-4 ${isFavorited ? 'fill-red-500 text-red-500' : 'text-slate-300'}`} />
+            <Heart className={`w-4 h-4 ${isFavorited ? 'fill-red-500 text-red-500' : 'text-slate-400'}`} />
           </button>
           <button
             onClick={() => navigator.share?.({ title: `${weather.locationName} AQI`, url: window.location.href })}
-            className="p-2.5 rounded-xl bg-[#28323f]/95 hover:bg-[#323d4c] border border-white/15 text-slate-300 hover:text-white transition shadow-lg"
+            className="p-2.5 rounded-xl bg-white/85 hover:bg-white border border-slate-200/90 text-slate-600 hover:text-slate-900 transition shadow-sm"
             title={t('share')}
           >
             <Share2 className="w-4 h-4" />
@@ -148,68 +149,105 @@ export default function AqiTab({ aqi, weather, onLocateMe, isLoadingLocate }: Aq
                 {t('air_quality_level')}
               </span>
               <span
-                className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border"
+                className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm"
                 style={{ backgroundColor: aqi.badgeBg, color: aqi.categoryColor }}
               >
-                {aqi.category}
+                {getStatusLabel(aqi.category)}
               </span>
             </div>
 
-            {/* Semi-circle gauge */}
-            <div className="flex flex-col items-center my-2">
-              <div className="relative w-52 h-28 overflow-hidden">
-                <svg viewBox="0 0 100 50" className="w-full h-full">
-                  <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="10" strokeLinecap="round" />
+            {/* Semicircular Radial Gauge */}
+            <div className="flex flex-col items-center justify-center py-4">
+              <div className="relative w-64 h-32 overflow-hidden flex items-end justify-center">
+                <svg viewBox="0 0 200 100" className="w-full h-full">
+                  <path
+                    d="M 20 100 A 80 80 0 0 1 180 100"
+                    fill="none"
+                    stroke="rgba(0,0,0,0.06)"
+                    strokeWidth="18"
+                    strokeLinecap="round"
+                  />
                   <defs>
-                    <linearGradient id="aqiGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <linearGradient id="aqiGaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
                       <stop offset="0%"   stopColor="#10b981" />
-                      <stop offset="35%"  stopColor="#f59e0b" />
-                      <stop offset="65%"  stopColor="#f97316" />
-                      <stop offset="100%" stopColor="#ef4444" />
+                      <stop offset="25%"  stopColor="#f59e0b" />
+                      <stop offset="50%"  stopColor="#f97316" />
+                      <stop offset="75%"  stopColor="#ef4444" />
+                      <stop offset="100%" stopColor="#7c3aed" />
                     </linearGradient>
                   </defs>
-                  <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="url(#aqiGrad)" strokeWidth="10" strokeLinecap="round" />
+                  <path
+                    d="M 20 100 A 80 80 0 0 1 180 100"
+                    fill="none"
+                    stroke="url(#aqiGaugeGrad)"
+                    strokeWidth="18"
+                    strokeLinecap="round"
+                  />
+                  {/* Gauge needle marker */}
                   <circle
-                    cx={50 - 40 * Math.cos((angle * Math.PI) / 180)}
-                    cy={50 - 40 * Math.sin((angle * Math.PI) / 180)}
-                    r="4.5" fill="white" stroke="#64748b" strokeWidth="1.5"
+                    cx={100 - 80 * Math.cos((angle * Math.PI) / 180)}
+                    cy={100 - 80 * Math.sin((angle * Math.PI) / 180)}
+                    r="8"
+                    fill="white"
+                    stroke="#1e293b"
+                    strokeWidth="3"
+                    className="drop-shadow-md"
                   />
                 </svg>
-                <div className="absolute bottom-0 inset-x-0 text-center">
-                  <span className="text-4xl font-extrabold text-slate-800 font-mono tracking-tight">{aqi.aqi}</span>
-                  <span className="text-sm font-semibold text-slate-500 ml-1">AQI</span>
+
+                <div className="absolute bottom-0 flex flex-col items-center leading-none">
+                  <span className="text-5xl font-black text-slate-800 font-mono tracking-tight">
+                    {formatNum(aqi.aqi)}
+                  </span>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">
+                    US AQI
+                  </span>
                 </div>
               </div>
-              <p className="text-sm text-center text-slate-600 font-medium max-w-sm mt-4">{aqi.summary}</p>
+
+              <p className="mt-4 text-sm font-semibold text-slate-600 text-center max-w-sm">
+                {aqi.summary}
+              </p>
             </div>
 
-            <div className="mt-4 p-3.5 rounded-xl bg-cyan-50 border border-cyan-200 flex items-start gap-3">
-              <Info className="w-4 h-4 text-cyan-600 shrink-0 mt-0.5" />
-              <div className="text-xs text-cyan-800 leading-relaxed">
-                <span className="font-semibold">{t('advisory')}: </span>
-                {getAdvisoryText()}
+            {/* Health Advisory snippet */}
+            <div className="card-inner flex items-start gap-3 mt-4">
+              <div className="w-8 h-8 rounded-lg bg-cyan-50 border border-cyan-200 flex items-center justify-center shrink-0 mt-0.5">
+                <Wind className="w-4 h-4 text-cyan-600" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-slate-700 block">{t('advisory')}</span>
+                <p className="text-xs text-slate-600 leading-relaxed mt-0.5">
+                  {getAdvisoryText()}
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Hourly AQI trend */}
-          <div className="card">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 block mb-4">
+          {/* Hourly AQI Forecast */}
+          <div className="card space-y-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 block">
               {t('hourly_aqi_trend')}
             </span>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {aqi.hourlyAqi.slice(0, 6).map((item, idx) => (
                 <div key={idx} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-center hover:border-cyan-400 transition">
-                  <span className="text-[11px] font-semibold text-slate-500 block">{item.displayTime}</span>
-                  <span className="text-lg font-bold text-slate-800 font-mono my-1 block">{item.aqi}</span>
-                  <span className="text-[10px] text-cyan-600 font-semibold">PM2.5:{item.pm25}</span>
+                  <span className="text-[11px] font-semibold text-slate-500 block">
+                    {item.displayTime === 'Now' ? t('time_now') : formatNum(item.displayTime)}
+                  </span>
+                  <span className="text-lg font-bold text-slate-800 font-mono my-1 block">
+                    {formatNum(item.aqi)}
+                  </span>
+                  <span className="text-[10px] text-cyan-700 font-semibold">
+                    PM2.5:{formatNum(item.pm25)}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Comprehensive Coastal Health & Maritime Advisory Guide */}
-          <div className="card space-y-3 bg-white/95">
+          <div className="card space-y-3">
             <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
@@ -217,15 +255,15 @@ export default function AqiTab({ aqi, weather, onLocateMe, isLoadingLocate }: Aq
               </h3>
             </div>
             <div className="space-y-2.5 text-xs text-slate-600">
-              <div className="flex items-start gap-2.5 p-2 rounded-lg bg-slate-50 border border-slate-100">
+              <div className="flex items-start gap-2.5 p-2 rounded-lg bg-slate-50 border border-slate-200/70">
                 <Users className="w-4 h-4 text-cyan-600 shrink-0 mt-0.5" />
                 <span>{t('health_guide_general')}</span>
               </div>
-              <div className="flex items-start gap-2.5 p-2 rounded-lg bg-slate-50 border border-slate-100">
+              <div className="flex items-start gap-2.5 p-2 rounded-lg bg-slate-50 border border-slate-200/70">
                 <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                 <span>{t('health_guide_sensitive')}</span>
               </div>
-              <div className="flex items-start gap-2.5 p-2 rounded-lg bg-slate-50 border border-slate-100">
+              <div className="flex items-start gap-2.5 p-2 rounded-lg bg-slate-50 border border-slate-200/70">
                 <Anchor className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
                 <span>{t('health_guide_mariners')}</span>
               </div>
@@ -246,7 +284,7 @@ export default function AqiTab({ aqi, weather, onLocateMe, isLoadingLocate }: Aq
                   </span>
                 </div>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-3xl font-extrabold text-slate-800 font-mono">{p.value}</span>
+                  <span className="text-3xl font-extrabold text-slate-800 font-mono">{formatNum(p.value)}</span>
                   <span className="text-xs font-medium text-slate-500">{p.unit}</span>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">{p.name}</p>
@@ -273,7 +311,7 @@ export default function AqiTab({ aqi, weather, onLocateMe, isLoadingLocate }: Aq
               <div className="flex-1 min-w-0">
                 <span className="text-xs font-semibold text-slate-500 block truncate">{t('pollutant_dust')}</span>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-lg font-bold text-slate-800 font-mono">{aqi.dust ?? 14.2}</span>
+                  <span className="text-lg font-bold text-slate-800 font-mono">{formatNum(aqi.dust ?? 14.2)}</span>
                   <span className="text-xs text-slate-500">µg/m³</span>
                 </div>
                 <p className="text-[10px] text-slate-400 truncate">{t('dust_desc')}</p>
@@ -287,8 +325,10 @@ export default function AqiTab({ aqi, weather, onLocateMe, isLoadingLocate }: Aq
               </div>
               <div className="flex-1 min-w-0">
                 <span className="text-xs font-semibold text-slate-500 block">{t('uv_index')}</span>
-                <span className="text-lg font-bold text-slate-800 font-mono">{aqi.uvIndex} — {aqi.uvIndex <= 2 ? 'Low' : aqi.uvIndex <= 5 ? 'Moderate' : 'High'}</span>
-                <p className="text-[10px] text-slate-400 truncate">Solar irradiance index</p>
+                <span className="text-lg font-bold text-slate-800 font-mono">
+                  {formatNum(aqi.uvIndex)} — {aqi.uvIndex <= 2 ? t('low_level') : aqi.uvIndex <= 5 ? t('moderate_level') : t('high_level')}
+                </span>
+                <p className="text-[10px] text-slate-400 truncate">{t('solar_irradiance_desc')}</p>
               </div>
             </div>
           </div>
@@ -297,8 +337,8 @@ export default function AqiTab({ aqi, weather, onLocateMe, isLoadingLocate }: Aq
 
       </div>
 
-      <p className="mt-6 text-xs text-slate-300 drop-shadow italic">
-        {t('last_updated')}: {aqi.lastUpdated}
+      <p className="mt-6 text-xs text-slate-500 drop-shadow italic">
+        {t('last_updated')}: {formatNum(aqi.lastUpdated)}
       </p>
     </div>
   );
