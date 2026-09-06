@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import BackgroundVideo from '@/components/BackgroundVideo';
 import { LanguageProvider } from '@/lib/LanguageContext';
+import { LocationProvider } from '@/lib/LocationContext';
 
 export const metadata: Metadata = {
   title: 'JalSanket | Real-time Coastal AQI, Weather & PFZ Intelligence',
@@ -24,9 +25,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Full-page looping background video with very-light overlay */}
         <BackgroundVideo />
 
-        {/* Navbar (logo + tabs) rendered from page.tsx so it can hold tab state */}
+        {/* Global Providers */}
         <LanguageProvider>
-          {children}
+          <LocationProvider>
+            {children}
+          </LocationProvider>
         </LanguageProvider>
       </body>
     </html>

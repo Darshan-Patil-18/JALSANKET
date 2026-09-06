@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Navbar, { TabType } from '@/components/Navbar';
 import WeatherTab from '@/components/WeatherTab';
 import AqiTab from '@/components/AqiTab';
@@ -8,34 +8,34 @@ import FishingZoneTab from '@/components/FishingZoneTab';
 import HazardTab from '@/components/HazardTab';
 import TideTab from '@/components/TideTab';
 import EmergencyTab from '@/components/EmergencyTab';
+import GlobalLocationBar from '@/components/GlobalLocationBar';
+
 import { WeatherData, AqiData } from '@/lib/types';
-import { fetchLiveWeatherData, fetchLiveAqiData, reverseGeocode } from '@/lib/api';
+import { fetchLiveWeatherData, fetchLiveAqiData } from '@/lib/api';
+import { useLocation } from '@/lib/LocationContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>('weather');
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [aqiData, setAqiData] = useState<AqiData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [locating, setLocating] = useState(false);
-  const [locationError, setLocationError] = useState<string | null>(null);
-  const [currentCoords, setCurrentCoords] = useState<{ lat: number; lon: number; name: string }>({
-    lat: 23.0225,
-    lon: 72.5714,
-    name: 'Ahmedabad',
-  });
 
-  const loadData = useCallback(async (lat: number, lon: number, locationName: string) => {
+  const { location } = useLocation();
+
+  // Track previous fetch coords to avoid duplicate fetches
+  const prevFetchRef = useRef<string>('');
+
+  const loadData = useCallback(async (lat: number, lng: number, cityName: string) => {
     try {
       setLoading(true);
       const [wData, aData] = await Promise.all([
-        fetchLiveWeatherData(lat, lon, locationName),
-        fetchLiveAqiData(lat, lon),
+        fetchLiveWeatherData(lat, lng, cityName),
+        fetchLiveAqiData(lat, lng),
       ]);
       setWeatherData(wData);
       setAqiData(aData);
-      setLocationError(null);
     } catch (err) {
       console.error('Error fetching live data:', err);
     } finally {
@@ -43,39 +43,32 @@ export default function Home() {
     }
   }, []);
 
-  const handleRequestLocation = useCallback(() => {
-    if (typeof window === 'undefined' || !navigator.geolocation) {
-      setLocationError('Geolocation is not supported by your browser.');
-      loadData(23.0225, 72.5714, 'Ahmedabad, Gujarat');
-      return;
+  // KEY LOGIC: Weather & AQI use the user's REAL GPS coordinates if available,
+  // so you get Ahmedabad weather when you're in Ahmedabad (not Kandla).
+  // Fishing/Hazard/Tide tabs use the coastal city from context automatically.
+  useEffect(() => {
+    let fetchLat: number;
+    let fetchLng: number;
+    let fetchName: string;
+
+    if (location.source === 'geolocation' && location.userRealCoords) {
+      // User clicked "Use My Location" — show weather for their ACTUAL position
+      fetchLat = location.userRealCoords.lat;
+      fetchLng = location.userRealCoords.lng;
+      fetchName = location.userRealLocationName || location.city;
+    } else {
+      // Manual dropdown selection — show weather for the selected coastal city
+      fetchLat = location.lat;
+      fetchLng = location.lng;
+      fetchName = location.city;
     }
 
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        try {
-          const locName = await reverseGeocode(latitude, longitude);
-          setCurrentCoords({ lat: latitude, lon: longitude, name: locName });
-          await loadData(latitude, longitude, locName);
-        } catch {
-          await loadData(latitude, longitude, `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`);
-        } finally {
-          setLocating(false);
-        }
-      },
-      () => {
-        setLocationError('Location access was not granted. Using default location (Ahmedabad).');
-        setLocating(false);
-        loadData(23.0225, 72.5714, 'Ahmedabad, Gujarat');
-      },
-      { timeout: 8000 }
-    );
-  }, [loadData]);
-
-  useEffect(() => {
-    handleRequestLocation();
-  }, [handleRequestLocation]);
+    const fetchKey = `${fetchLat.toFixed(3)}_${fetchLng.toFixed(3)}`;
+    if (fetchKey !== prevFetchRef.current) {
+      prevFetchRef.current = fetchKey;
+      loadData(fetchLat, fetchLng, fetchName);
+    }
+  }, [location.lat, location.lng, location.city, location.source, location.userRealCoords, location.userRealLocationName, loadData]);
 
   const tabVariants = {
     initial: { opacity: 0, y: 10 },
@@ -89,21 +82,10 @@ export default function Home() {
       <Navbar activeTab={activeTab} onChange={setActiveTab} />
 
       {/* ── Page content ── */}
-      <main className="relative z-10 w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-10 py-8">
+      <main className="relative z-10 w-full max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-10 py-4 sm:py-8 pb-24">
 
-        {/* Location denied alert */}
-        {locationError && (
-          <div className="mb-5 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-amber-50/90 border border-amber-300/60 backdrop-blur-sm text-amber-800 text-sm shadow-sm">
-            <AlertCircle className="w-4 h-4 shrink-0 text-amber-500" />
-            <span>{locationError}</span>
-            <button
-              onClick={handleRequestLocation}
-              className="ml-auto underline font-semibold text-cyan-600 hover:text-cyan-700"
-            >
-              Retry
-            </button>
-          </div>
-        )}
+        {/* ── Unified Location Bar (drives all tabs) ── */}
+        <GlobalLocationBar />
 
         {/* Tab panel */}
         {loading && !weatherData ? (
@@ -117,12 +99,12 @@ export default function Home() {
           <AnimatePresence mode="wait">
             {activeTab === 'weather' && weatherData && aqiData && (
               <motion.div key="weather" variants={tabVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
-                <WeatherTab weather={weatherData} aqi={aqiData} onLocateMe={handleRequestLocation} isLoadingLocate={locating} />
+                <WeatherTab weather={weatherData} aqi={aqiData} />
               </motion.div>
             )}
             {activeTab === 'aqi' && weatherData && aqiData && (
               <motion.div key="aqi" variants={tabVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
-                <AqiTab aqi={aqiData} weather={weatherData} onLocateMe={handleRequestLocation} isLoadingLocate={locating} />
+                <AqiTab aqi={aqiData} weather={weatherData} />
               </motion.div>
             )}
             {activeTab === 'fishing' && (
@@ -142,12 +124,14 @@ export default function Home() {
             )}
             {activeTab === 'emergency' && (
               <motion.div key="emergency" variants={tabVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
-                <EmergencyTab currentCoords={currentCoords} />
+                <EmergencyTab />
               </motion.div>
             )}
           </AnimatePresence>
         )}
       </main>
+
+
     </>
   );
 }

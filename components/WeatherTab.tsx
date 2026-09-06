@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import {
-  MapPin, LocateFixed, Share2, Heart,
+  MapPin, Share2, Heart,
   Thermometer, CloudRain, Wind, Droplets,
   ArrowUpRight, Sun, Cloud, CloudSun, Moon, MoonStar,
   Gauge, Eye, Sunrise
@@ -13,11 +13,9 @@ import { useLanguage } from '@/lib/LanguageContext';
 interface WeatherTabProps {
   weather: WeatherData;
   aqi: AqiData;
-  onLocateMe: () => void;
-  isLoadingLocate?: boolean;
 }
 
-export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }: WeatherTabProps) {
+export default function WeatherTab({ weather, aqi }: WeatherTabProps) {
   const { t, formatNum, localizeLocation, translateCondition } = useLanguage();
   const [forecastMode, setForecastMode] = useState<'hourly' | 'daily'>('hourly');
   const [isFavorited, setIsFavorited] = useState(false);
@@ -93,14 +91,6 @@ export default function WeatherTab({ weather, aqi, onLocateMe, isLoadingLocate }
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={onLocateMe}
-            disabled={isLoadingLocate}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/85 hover:bg-white border border-slate-200/90 text-sm font-semibold text-slate-800 transition shadow-sm"
-          >
-            <LocateFixed className={`w-4 h-4 text-cyan-600 ${isLoadingLocate ? 'animate-spin' : ''}`} />
-            {isLoadingLocate ? t('locating') : t('locate_me')}
-          </button>
           <button
             onClick={() => setIsFavorited(!isFavorited)}
             className="p-2.5 rounded-xl bg-white/85 hover:bg-white border border-slate-200/90 text-slate-700 transition shadow-sm"

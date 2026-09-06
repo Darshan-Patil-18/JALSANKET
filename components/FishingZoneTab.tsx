@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import dynamic from 'next/dynamic';
 import { 
   Compass, 
@@ -10,11 +10,12 @@ import {
   Clock, 
   AlertTriangle, 
   Fish, 
-  Anchor,
   Sparkles
 } from 'lucide-react';
-import { COASTAL_FISHING_ZONES } from '@/lib/api';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useLocation } from '@/lib/LocationContext';
+import { getFishingZoneForCity } from '@/lib/zoneData';
+import { formatZoneNavigationText } from '@/lib/geoUtils';
 
 // Dynamic import for Leaflet map component with ssr disabled
 const DynamicFishingMap = dynamic(() => import('./FishingMap'), {
@@ -30,20 +31,68 @@ const DynamicFishingMap = dynamic(() => import('./FishingMap'), {
 });
 
 export default function FishingZoneTab() {
-  const { t, formatNum } = useLanguage();
-  const [selectedZoneId, setSelectedZoneId] = useState<string>(COASTAL_FISHING_ZONES[0].id);
+  const { lang, t, formatNum, localizeLocation } = useLanguage();
+  const { location } = useLocation();
 
-  const selectedZone = COASTAL_FISHING_ZONES.find((z) => z.id === selectedZoneId) || COASTAL_FISHING_ZONES[0];
+  const selectedZone = getFishingZoneForCity(
+    location.city,
+    location.state,
+    location.lat,
+    location.lng
+  );
 
   const getZoneDisplayName = (zoneId: string, fallbackName: string) => {
     const key = `fz_${zoneId}_name`;
     const translated = t(key);
-    return translated !== key ? translated : fallbackName;
+    return translated !== key ? translated : `${localizeLocation(location.city)} ${t('coastal_sector') || fallbackName}`;
   };
+
+  const navInfo = location.userRealCoords
+    ? formatZoneNavigationText(
+        location.userRealCoords.lat,
+        location.userRealCoords.lng,
+        selectedZone.shorePoint[0],
+        selectedZone.shorePoint[1],
+        lang,
+        formatNum
+      )
+    : null;
+
+  const badgeStr = t(`fz_${selectedZone.id}_badge`) !== `fz_${selectedZone.id}_badge`
+    ? t(`fz_${selectedZone.id}_badge`)
+    : selectedZone.statusBadge.toLowerCase().includes('optimal')
+    ? (t('badge_optimal_pfz') || 'Optimal PFZ Window')
+    : selectedZone.statusBadge.toLowerCase().includes('prime')
+    ? (t('badge_prime_harvest') || 'Prime Harvest Window')
+    : selectedZone.statusBadge.toLowerCase().includes('high yield')
+    ? (t('badge_high_yield_pfz') || 'High Yield PFZ')
+    : (t('badge_active_pfz') || 'Active PFZ Zone');
+
+  const recStr = t(`fz_${selectedZone.id}_rec`) !== `fz_${selectedZone.id}_rec`
+    ? t(`fz_${selectedZone.id}_rec`)
+    : (t('fz_default_rec') || selectedZone.recommendation).replace('{city}', localizeLocation(location.city));
+
+  const densityStr = t(`fz_${selectedZone.id}_density`) !== `fz_${selectedZone.id}_density`
+    ? t(`fz_${selectedZone.id}_density`)
+    : selectedZone.fishDensity.toLowerCase().includes('high')
+    ? (t('density_high_pelagic') || 'High (Pelagic Shoals)')
+    : (t('density_moderate_finfish') || 'Moderate (Coastal Finfish)');
+
+  const d1Str = t(`fz_${selectedZone.id}_d1`) !== `fz_${selectedZone.id}_d1`
+    ? t(`fz_${selectedZone.id}_d1`)
+    : `${localizeLocation(location.city)} ${t('baseline_anchor_point') || 'Baseline Anchor Point'}`;
+
+  const d2Str = t(`fz_${selectedZone.id}_d2`) !== `fz_${selectedZone.id}_d2`
+    ? t(`fz_${selectedZone.id}_d2`)
+    : `${formatNum('16.4')} ${t('km') || 'km'} ${t('dir_sw') || 'SW'} (${t('thermal_gradient') || 'Thermal Gradient'})`;
+
+  const d3Str = t(`fz_${selectedZone.id}_d3`) !== `fz_${selectedZone.id}_d3`
+    ? t(`fz_${selectedZone.id}_d3`)
+    : `${formatNum('28.2')} ${t('km') || 'km'} ${t('dir_wsw') || 'WSW'} (${t('pelagic_shoal_core') || 'Pelagic Shoal Core'})`;
 
   return (
     <div className="w-full">
-      {/* Top Controls & Dropdown Bar */}
+      {/* Top Controls Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -53,31 +102,20 @@ export default function FishingZoneTab() {
             </h1>
           </div>
           <p className="text-sm font-medium text-slate-300 ml-8 drop-shadow">
-            {t('fishing_subtitle')}
+            {t('fishing_subtitle')} · {localizeLocation(location.city)}, {localizeLocation(location.state)}
           </p>
         </div>
 
-        {/* Dropdown Selector */}
-        <div className="flex items-center gap-3">
-          <label htmlFor="coastal-select" className="text-xs font-semibold text-slate-200 drop-shadow">
-            {t('select_zone')}:
-          </label>
-          <div className="relative">
-            <select
-              id="coastal-select"
-              value={selectedZoneId}
-              onChange={(e) => setSelectedZoneId(e.target.value)}
-              className="appearance-none px-4 py-2 pr-9 rounded-xl bg-white/85 hover:bg-white border border-slate-200/90 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 backdrop-blur-md cursor-pointer shadow-sm transition"
-            >
-              {COASTAL_FISHING_ZONES.map((zone) => (
-                <option key={zone.id} value={zone.id} className="bg-white text-slate-800">
-                  {getZoneDisplayName(zone.id, zone.name)} ({t('loc_gujarat')})
-                </option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-cyan-600">
-              <Anchor className="w-4 h-4" />
+        {/* Active Coordinates & Navigation Indicator */}
+        <div className="flex items-center gap-2">
+          {navInfo && (
+            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-100 text-xs font-semibold backdrop-blur-md">
+              <Compass className="w-3.5 h-3.5 text-cyan-300 animate-pulse" />
+              <span>{navInfo.displayText}</span>
             </div>
+          )}
+          <div className="px-3.5 py-1.5 rounded-xl bg-white/85 border border-slate-200/90 text-xs font-semibold text-slate-700 backdrop-blur-md shadow-sm">
+            <span>{t('incois_pfz_model') || 'INCOIS-PFZ Satellite Model'}</span>
           </div>
         </div>
       </div>
@@ -136,7 +174,7 @@ export default function FishingZoneTab() {
                 <Fish className="w-4 h-4 text-teal-600" />
               </div>
               <div className="text-xs font-bold text-emerald-600 mt-1">
-                {selectedZone.fishDensity}
+                {densityStr}
               </div>
               <span className="text-[10px] text-slate-500 font-medium mt-1">{t('pelagic_shoals')}</span>
             </div>
@@ -153,7 +191,7 @@ export default function FishingZoneTab() {
                 {t('recommendation')}
               </span>
               <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                {selectedZone.statusBadge}
+                {badgeStr}
               </span>
             </div>
 
@@ -163,9 +201,22 @@ export default function FishingZoneTab() {
                 <span>{t('advisory')}</span>
               </div>
               <p className="text-xs leading-relaxed text-slate-700 font-normal">
-                {selectedZone.recommendation}
+                {recStr}
               </p>
             </div>
+
+            {/* Live Navigation Vector when user location is available */}
+            {navInfo && (
+              <div className="p-3.5 rounded-xl bg-cyan-50/90 border border-cyan-200 text-xs text-cyan-950 space-y-1">
+                <div className="flex items-center gap-2 font-bold text-cyan-900">
+                  <Compass className="w-4 h-4 text-cyan-700 animate-spin-slow" />
+                  <span>{t('realtime_vessel_nav') || 'Real-time Vessel Navigation'}</span>
+                </div>
+                <p className="text-[11px] font-medium text-cyan-800">
+                  {navInfo.displayText}
+                </p>
+              </div>
+            )}
 
             {/* Time Window */}
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200/70 text-xs">
@@ -178,19 +229,19 @@ export default function FishingZoneTab() {
 
             {/* Vector Triangle Details */}
             <div className="space-y-2 text-xs text-slate-700">
-              <span className="font-semibold text-slate-600 block">PFZ Geometry & Range:</span>
+              <span className="font-semibold text-slate-600 block">{t('pfz_geometry_range')}</span>
               <ul className="space-y-1.5 pl-1">
                 <li className="flex items-center justify-between text-[11px] bg-slate-50 border border-slate-200/60 px-3 py-2 rounded-lg">
                   <span className="text-slate-600 font-medium">{t('map_anchor_coastal')}</span>
-                  <span className="font-mono text-cyan-700 font-bold">{formatNum(selectedZone.distances.p1)}</span>
+                  <span className="font-mono text-cyan-700 font-bold">{d1Str}</span>
                 </li>
                 <li className="flex items-center justify-between text-[11px] bg-slate-50 border border-slate-200/60 px-3 py-2 rounded-lg">
                   <span className="text-slate-600 font-medium">{t('map_pelagic_edge')}</span>
-                  <span className="font-mono text-cyan-700 font-bold">{formatNum(selectedZone.distances.p2)}</span>
+                  <span className="font-mono text-cyan-700 font-bold">{d2Str}</span>
                 </li>
                 <li className="flex items-center justify-between text-[11px] bg-slate-50 border border-slate-200/60 px-3 py-2 rounded-lg">
                   <span className="text-slate-600 font-medium">{t('map_upwelling_vector')}</span>
-                  <span className="font-mono text-cyan-700 font-bold">{formatNum(selectedZone.distances.p3)}</span>
+                  <span className="font-mono text-cyan-700 font-bold">{d3Str}</span>
                 </li>
               </ul>
             </div>

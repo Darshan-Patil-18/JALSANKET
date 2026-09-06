@@ -9,21 +9,20 @@ import {
   AlertTriangle, 
   Satellite
 } from 'lucide-react';
-import { EMERGENCY_CONTACTS } from '@/lib/api';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useLocation } from '@/lib/LocationContext';
+import { getEmergencyContactsForCity } from '@/lib/zoneData';
 
-interface EmergencyTabProps {
-  currentCoords?: { lat: number; lon: number; name: string };
-}
-
-export default function EmergencyTab({ currentCoords }: EmergencyTabProps) {
+export default function EmergencyTab() {
   const { t, formatNum, localizeLocation } = useLanguage();
+  const { location } = useLocation();
   const [sosActive, setSosActive] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
 
-  const lat = currentCoords?.lat ?? 21.6417;
-  const lon = currentCoords?.lon ?? 69.6293;
-  const locName = currentCoords?.name ?? 'Porbandar Coastal Sector';
+  const contacts = getEmergencyContactsForCity(location.city, location.state, location.lat, location.lng);
+  const lat = location.userRealCoords?.lat ?? location.lat;
+  const lon = location.userRealCoords?.lng ?? location.lng;
+  const locName = `${location.city} Coastal Sector`;
 
   const handleTriggerSos = () => {
     setCountdown(3);
@@ -66,7 +65,7 @@ export default function EmergencyTab({ currentCoords }: EmergencyTabProps) {
         
         {/* Left Section: Big Prominent SOS Trigger Card */}
         <div className="lg:col-span-6 space-y-6">
-          <div className="card p-8 flex flex-col items-center text-center relative overflow-hidden">
+          <div className="card p-5 sm:p-8 flex flex-col items-center text-center relative overflow-hidden">
             
             {/* Ambient Red Glow */}
             <div className="absolute inset-0 bg-gradient-to-b from-rose-100/40 via-transparent to-transparent pointer-events-none" />
@@ -77,7 +76,7 @@ export default function EmergencyTab({ currentCoords }: EmergencyTabProps) {
               <button
                 onClick={handleTriggerSos}
                 disabled={sosActive || countdown !== null}
-                className={`relative group w-48 h-48 rounded-full flex flex-col items-center justify-center p-4 transition-all duration-300 shadow-2xl ${
+                className={`relative group w-40 h-40 sm:w-48 sm:h-48 rounded-full flex flex-col items-center justify-center p-3 sm:p-4 transition-all duration-300 shadow-2xl ${
                   sosActive
                     ? 'bg-rose-600 border-4 border-rose-300 animate-pulse shadow-rose-600/50'
                     : 'bg-gradient-to-br from-rose-500 via-rose-600 to-red-700 hover:from-rose-400 hover:to-red-600 border-4 border-rose-300/80 hover:scale-105 shadow-rose-700/50 cursor-pointer active:scale-95'
@@ -85,14 +84,14 @@ export default function EmergencyTab({ currentCoords }: EmergencyTabProps) {
               >
                 {/* Ping Beacon Ring */}
                 <span className="absolute -inset-2 rounded-full border-2 border-rose-400/50 animate-ping opacity-60 pointer-events-none" />
-                <span className="absolute -inset-6 rounded-full border border-rose-400/30 animate-pulse pointer-events-none" />
+                <span className="absolute -inset-5 sm:-inset-6 rounded-full border border-rose-400/30 animate-pulse pointer-events-none" />
 
-                <Radio className={`w-12 h-12 mb-2 text-white ${sosActive ? 'animate-bounce' : ''}`} />
-                <span className="text-lg font-black uppercase tracking-wider text-white">
+                <Radio className={`w-10 h-10 sm:w-12 sm:h-12 mb-1.5 sm:mb-2 text-white ${sosActive ? 'animate-bounce' : ''}`} />
+                <span className="text-base sm:text-lg font-black uppercase tracking-wider text-white">
                   {countdown !== null ? `ARMING (${formatNum(countdown)}s)` : sosActive ? t('sos_cancel') : t('sos_activate')}
                 </span>
-                <span className="text-[10px] font-bold text-rose-100 uppercase tracking-widest mt-1">
-                  {sosActive ? 'Telemetry Uplinked' : 'One-Touch Distress'}
+                <span className="text-[9px] sm:text-[10px] font-bold text-rose-100 uppercase tracking-widest mt-0.5 sm:mt-1">
+                  {sosActive ? t('telemetry_uplinked') : t('one_touch_distress')}
                 </span>
               </button>
 
@@ -113,8 +112,8 @@ export default function EmergencyTab({ currentCoords }: EmergencyTabProps) {
                   </div>
                   <div className="text-xs text-slate-700 font-mono space-y-1">
                     <p>• {t('your_location')}: <strong className="text-slate-900">{formatNum(lat.toFixed(4))}°N, {formatNum(lon.toFixed(4))}°E</strong></p>
-                    <p>• SAR Hub: <strong className="text-cyan-700">MRCC Mumbai / Porbandar Notified</strong></p>
-                    <p>• Distress Channel: <strong className="text-amber-700">VHF Ch 16 (156.8 MHz)</strong></p>
+                    <p>• SAR Hub: <strong className="text-cyan-700">{t('sar_hub_notified')}</strong></p>
+                    <p>• {t('distress_channel')}</p>
                   </div>
                 </div>
               ) : (
@@ -151,44 +150,52 @@ export default function EmergencyTab({ currentCoords }: EmergencyTabProps) {
 
             {/* List */}
             <div className="space-y-3">
-              {EMERGENCY_CONTACTS.map((contact) => (
-                <div 
-                  key={contact.id}
-                  className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 hover:border-cyan-400 transition space-y-2"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-800 tracking-wide">
-                        {contact.name}
-                      </h4>
-                      <span className="text-xs text-cyan-700 font-medium block">
-                        {contact.type}
+              {contacts.map((contact) => {
+                const nameStr = t(`ec_${contact.id}_name`) !== `ec_${contact.id}_name` ? t(`ec_${contact.id}_name`) : contact.name;
+                const typeStr = t(`ec_${contact.id}_type`) !== `ec_${contact.id}_type` ? t(`ec_${contact.id}_type`) : contact.type;
+                const distStr = t(`ec_${contact.id}_dist`) !== `ec_${contact.id}_dist` ? t(`ec_${contact.id}_dist`) : contact.distance;
+                const freqStr = t(`ec_${contact.id}_freq`) !== `ec_${contact.id}_freq` ? t(`ec_${contact.id}_freq`) : contact.frequency;
+                const phoneStr = t(`ec_${contact.id}_phone`) !== `ec_${contact.id}_phone` ? t(`ec_${contact.id}_phone`) : contact.phone;
+
+                return (
+                  <div 
+                    key={contact.id}
+                    className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 hover:border-cyan-400 transition space-y-2"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-800 tracking-wide">
+                          {nameStr}
+                        </h4>
+                        <span className="text-xs text-cyan-700 font-medium block">
+                          {typeStr}
+                        </span>
+                      </div>
+                      <span className="text-xs font-mono font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+                        {formatNum(distStr)}
                       </span>
                     </div>
-                    <span className="text-xs font-mono font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
-                      {formatNum(contact.distance)}
-                    </span>
-                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600 pt-1 border-t border-slate-200/60 font-mono">
-                    <div className="flex items-center gap-1.5 text-slate-500">
-                      <Radio className="w-3.5 h-3.5 text-cyan-600" />
-                      <span>{formatNum(contact.frequency)}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-slate-700">
-                      <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                      <span className="font-semibold text-slate-800">{formatNum(contact.phone)}</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600 pt-1 border-t border-slate-200/60 font-mono">
+                      <div className="flex items-center gap-1.5 text-slate-500">
+                        <Radio className="w-3.5 h-3.5 text-cyan-600" />
+                        <span>{formatNum(freqStr)}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-700">
+                        <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                        <span className="font-semibold text-slate-800">{formatNum(phoneStr)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Maritime Protocol Note */}
             <div className="p-3.5 rounded-xl bg-rose-50/70 border border-rose-200 text-xs text-rose-900 space-y-1">
-              <span className="font-semibold text-rose-800 block">International Distress Radio Protocol:</span>
+              <span className="font-semibold text-rose-800 block">{t('intl_distress_protocol')}</span>
               <p className="text-[11px] text-rose-800/80 leading-relaxed">
-                In real emergency situations at sea, transmit "MAYDAY MAYDAY MAYDAY" on VHF Marine Channel 16 or 2182 kHz SSB, followed by vessel name, GPS coordinates, and nature of distress.
+                {t('distress_protocol_text')}
               </p>
             </div>
           </div>

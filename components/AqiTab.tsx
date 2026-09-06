@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import {
-  MapPin, LocateFixed, Share2, Heart, Wind, Activity,
+  MapPin, Share2, Heart, Wind, Activity,
   ShieldCheck, AlertTriangle, Users, Anchor
 } from 'lucide-react';
 import { AqiData, WeatherData } from '@/lib/types';
@@ -11,11 +11,9 @@ import { useLanguage } from '@/lib/LanguageContext';
 interface AqiTabProps {
   aqi: AqiData;
   weather: WeatherData;
-  onLocateMe: () => void;
-  isLoadingLocate?: boolean;
 }
 
-export default function AqiTab({ aqi, weather, onLocateMe, isLoadingLocate }: AqiTabProps) {
+export default function AqiTab({ aqi, weather }: AqiTabProps) {
   const { t, formatNum, localizeLocation } = useLanguage();
   const [isFavorited, setIsFavorited] = useState(false);
 
@@ -113,14 +111,6 @@ export default function AqiTab({ aqi, weather, onLocateMe, isLoadingLocate }: Aq
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={onLocateMe}
-            disabled={isLoadingLocate}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/85 hover:bg-white border border-slate-200/90 text-sm font-semibold text-slate-800 transition shadow-sm"
-          >
-            <LocateFixed className={`w-4 h-4 text-cyan-600 ${isLoadingLocate ? 'animate-spin' : ''}`} />
-            {isLoadingLocate ? t('locating') : t('locate_me')}
-          </button>
           <button
             onClick={() => setIsFavorited(!isFavorited)}
             className="p-2.5 rounded-xl bg-white/85 hover:bg-white border border-slate-200/90 text-slate-700 transition shadow-sm"

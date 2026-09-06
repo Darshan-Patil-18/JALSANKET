@@ -87,16 +87,48 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       Dwarka: 'loc_dwarka',
       Okha: 'loc_okha',
       Mandvi: 'loc_mandvi',
+      Kandla: 'loc_kandla',
       Mumbai: 'loc_mumbai',
       Kutch: 'loc_kutch',
       Gujarat: 'loc_gujarat',
       Maharashtra: 'loc_maharashtra',
+      Goa: 'loc_goa',
+      Karnataka: 'loc_karnataka',
+      Kerala: 'loc_kerala',
+      Kochi: 'loc_kochi',
+      Chennai: 'loc_chennai',
+      Visakhapatnam: 'loc_visakhapatnam',
+      Paradip: 'loc_paradip',
+      Digha: 'loc_digha',
+      Alang: 'loc_alang',
+      Bhavnagar: 'loc_bhavnagar',
+      Dahej: 'loc_dahej',
+      Surat: 'loc_surat',
+      Ratnagiri: 'loc_ratnagiri',
+      Mormugao: 'loc_mormugao',
+      Karwar: 'loc_karwar',
+      Mangalore: 'loc_mangalore',
+      Kozhikode: 'loc_kozhikode',
+      Kollam: 'loc_kollam',
+      Tuticorin: 'loc_tuticorin',
+      Cuddalore: 'loc_cuddalore',
+      Kakinada: 'loc_kakinada',
+      Gopalpur: 'loc_gopalpur',
+      Haldia: 'loc_haldia',
+      'Port Blair': 'loc_port_blair',
+      'Tamil Nadu': 'loc_tamil_nadu',
+      'Andhra Pradesh': 'loc_andhra_pradesh',
+      Odisha: 'loc_odisha',
+      'West Bengal': 'loc_west_bengal',
       India: 'loc_india',
     };
     for (const [english, key] of Object.entries(knownLocations)) {
       const regex = new RegExp(`\\b${english}\\b`, 'gi');
       if (regex.test(result)) {
-        result = result.replace(regex, t(key));
+        const trans = t(key);
+        if (trans && trans !== key) {
+          result = result.replace(regex, trans);
+        }
       }
     }
     return result;

@@ -1,4 +1,5 @@
 import { extendedTranslations } from './i18n_extended';
+import { coastalUiTranslations } from './i18n_coastal_ui';
 
 export interface TranslationDict {
   [key: string]: string;
@@ -1398,6 +1399,13 @@ export const translations: Record<string, TranslationDict> = {
 
 // Merge extended multilingual translations
 Object.entries(extendedTranslations).forEach(([lang, dict]) => {
+  if (translations[lang]) {
+    Object.assign(translations[lang], dict);
+  }
+});
+
+// Merge coastal UI & dynamic location/hazard/tide translations
+Object.entries(coastalUiTranslations).forEach(([lang, dict]) => {
   if (translations[lang]) {
     Object.assign(translations[lang], dict);
   }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import dynamic from 'next/dynamic';
 import { 
   AlertTriangle, 
@@ -9,11 +9,12 @@ import {
   Eye, 
   Compass, 
   ShieldAlert, 
-  AlertOctagon, 
-  Anchor
+  AlertOctagon
 } from 'lucide-react';
-import { COASTAL_HAZARD_ZONES } from '@/lib/api';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useLocation } from '@/lib/LocationContext';
+import { getHazardZoneForCity } from '@/lib/zoneData';
+import { formatZoneNavigationText } from '@/lib/geoUtils';
 
 const DynamicHazardMap = dynamic(() => import('./HazardMap'), {
   ssr: false,
@@ -28,25 +29,72 @@ const DynamicHazardMap = dynamic(() => import('./HazardMap'), {
 });
 
 export default function HazardTab() {
-  const { t, formatNum } = useLanguage();
-  const [selectedZoneId, setSelectedZoneId] = useState<string>(COASTAL_HAZARD_ZONES[0].id);
+  const { lang, t, formatNum, localizeLocation } = useLanguage();
+  const { location } = useLocation();
 
-  const selectedZone = COASTAL_HAZARD_ZONES.find((z) => z.id === selectedZoneId) || COASTAL_HAZARD_ZONES[0];
+  const selectedZone = getHazardZoneForCity(
+    location.city,
+    location.state,
+    location.lat,
+    location.lng
+  );
 
   const getZoneDisplay = (zone: typeof selectedZone) => {
     const baseKey = zone.id.replace('-hazard', '');
     const nameKey = `hz_${baseKey}_name`;
     const typeKey = `hz_${baseKey}_type`;
-    const nameStr = t(nameKey) !== nameKey ? t(nameKey) : zone.name;
-    const typeStr = t(typeKey) !== typeKey ? t(typeKey) : zone.hazardType;
+    const nameStr = t(nameKey) !== nameKey ? t(nameKey) : `${localizeLocation(location.city)} ${t('coastal_sector') || 'Coastal Sector'}`;
+    const typeStr = t(typeKey) !== typeKey 
+      ? t(typeKey) 
+      : zone.hazardType.toLowerCase().includes('undercurrent') || zone.hazardType.toLowerCase().includes('rip')
+      ? (t('hazard_rip_current') || 'Strong Undercurrent & Rip Swell')
+      : (t('hazard_submerged_reefs') || 'Submerged Reefs & Heavy Breakers');
     return { nameStr, typeStr };
   };
 
   const activeZoneDisplay = getZoneDisplay(selectedZone);
+  const baseKey = selectedZone.id.replace('-hazard', '');
+
+  const badgeStr = t(`hz_${baseKey}_badge`) !== `hz_${baseKey}_badge`
+    ? t(`hz_${baseKey}_badge`)
+    : selectedZone.statusBadge.toLowerCase().includes('high risk')
+    ? (t('badge_high_risk_alert') || 'HIGH RISK ALERT')
+    : (t('badge_navigational_danger') || 'NAVIGATIONAL DANGER');
+
+  const recStr = t(`hz_${baseKey}_rec`) !== `hz_${baseKey}_rec`
+    ? t(`hz_${baseKey}_rec`)
+    : (t('hz_default_rec') || selectedZone.recommendation).replace('{knots}', formatNum('2.8'));
+
+  const noteStr = t(`hz_${baseKey}_note`) !== `hz_${baseKey}_note`
+    ? t(`hz_${baseKey}_note`)
+    : (t('hz_default_note') || selectedZone.warningNote);
+
+  const navInfo = location.userRealCoords
+    ? formatZoneNavigationText(
+        location.userRealCoords.lat,
+        location.userRealCoords.lng,
+        selectedZone.shorePoint[0],
+        selectedZone.shorePoint[1],
+        lang,
+        formatNum
+      )
+    : null;
+
+  const d1Str = t(`hz_${baseKey}_d1`) !== `hz_${baseKey}_d1`
+    ? t(`hz_${baseKey}_d1`)
+    : `${localizeLocation(location.city)} ${t('shoreline_anchor_point') || 'Shoreline Anchor Point'}`;
+
+  const d2Str = t(`hz_${baseKey}_d2`) !== `hz_${baseKey}_d2`
+    ? t(`hz_${baseKey}_d2`)
+    : `${formatNum('15.0')} ${t('km') || 'km'} ${t('dir_sw') || 'SW'} (${t('rip_confluence_zone') || 'Rip Confluence Zone'})`;
+
+  const d3Str = t(`hz_${baseKey}_d3`) !== `hz_${baseKey}_d3`
+    ? t(`hz_${baseKey}_d3`)
+    : `${formatNum('29.5')} ${t('km') || 'km'} ${t('dir_wsw') || 'WSW'} (${t('cross_sea_swell_axis') || 'Cross-Sea Swell Axis'})`;
 
   return (
     <div className="w-full">
-      {/* Top Controls & Dropdown Bar */}
+      {/* Top Controls Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -56,34 +104,20 @@ export default function HazardTab() {
             </h1>
           </div>
           <p className="text-sm font-medium text-slate-300 ml-8 drop-shadow">
-            {t('hazard_subtitle')}
+            {t('hazard_subtitle')} · {localizeLocation(location.city)}, {localizeLocation(location.state)}
           </p>
         </div>
 
-        {/* Dropdown Selector */}
-        <div className="flex items-center gap-3">
-          <label htmlFor="hazard-select" className="text-xs font-semibold text-slate-200 drop-shadow">
-            {t('select_hazard_sector')}:
-          </label>
-          <div className="relative">
-            <select
-              id="hazard-select"
-              value={selectedZoneId}
-              onChange={(e) => setSelectedZoneId(e.target.value)}
-              className="appearance-none px-4 py-2 pr-9 rounded-xl bg-white/85 hover:bg-white border border-slate-200/90 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-400 backdrop-blur-md cursor-pointer shadow-sm transition"
-            >
-              {COASTAL_HAZARD_ZONES.map((zone) => {
-                const item = getZoneDisplay(zone);
-                return (
-                  <option key={zone.id} value={zone.id} className="bg-white text-slate-800">
-                    {item.nameStr} ({item.typeStr})
-                  </option>
-                );
-              })}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-rose-500">
-              <Anchor className="w-4 h-4" />
+        {/* Active Coordinates & Hazard Status */}
+        <div className="flex items-center gap-2">
+          {navInfo && (
+            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-500/20 border border-rose-400/40 text-rose-100 text-xs font-semibold backdrop-blur-md">
+              <Compass className="w-3.5 h-3.5 text-rose-300 animate-pulse" />
+              <span>{navInfo.displayText}</span>
             </div>
+          )}
+          <div className="px-3.5 py-1.5 rounded-xl bg-white/85 border border-slate-200/90 text-xs font-semibold text-slate-700 backdrop-blur-md shadow-sm">
+            <span>{t('coastal_warning_matrix') || 'Coastal Warning Matrix'}</span>
           </div>
         </div>
       </div>
@@ -159,7 +193,7 @@ export default function HazardTab() {
                 {t('safety_recommendation')}
               </span>
               <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
-                {selectedZone.statusBadge}
+                {badgeStr}
               </span>
             </div>
 
@@ -169,31 +203,50 @@ export default function HazardTab() {
                 <span>{t('navigation_warning')}</span>
               </div>
               <p className="text-xs leading-relaxed text-rose-900 font-normal">
-                {selectedZone.recommendation}
+                {recStr}
               </p>
             </div>
 
+            {/* Live Hazard Navigation Vector when user location is available */}
+            {navInfo && (
+              <div className="p-3.5 rounded-xl bg-rose-50/90 border border-rose-200 text-xs text-rose-950 space-y-1">
+                <div className="flex items-center gap-2 font-bold text-rose-900">
+                  <Compass className="w-4 h-4 text-rose-600 animate-spin-slow" />
+                  <span>{t('realtime_hazard_proximity') || 'Real-time Hazard Proximity'}</span>
+                </div>
+                <p className="text-[11px] font-medium text-rose-800">
+                  {navInfo.displayText}
+                </p>
+              </div>
+            )}
+
             {/* Warning Note */}
             <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200/80 text-xs text-amber-900 space-y-1">
-              <span className="font-semibold text-amber-800 block">Hydrodynamic Assessment:</span>
-              <p>{selectedZone.warningNote}</p>
+              <span className="font-semibold text-amber-800 block">{t('hydrodynamic_assessment')}</span>
+              <p>{noteStr}</p>
             </div>
 
             {/* Perimeter Details */}
             <div className="space-y-2 text-xs text-slate-700">
-              <span className="font-semibold text-slate-600 block">Hazard Vectors & Range:</span>
+              <span className="font-semibold text-slate-600 block">{t('hazard_vectors_range')}</span>
               <ul className="space-y-1.5 pl-1">
                 <li className="flex items-center justify-between text-[11px] bg-slate-50 border border-slate-200/60 px-3 py-2 rounded-lg">
                   <span className="text-slate-600 font-medium">{t('map_anchor_coastal')}</span>
-                  <span className="font-mono text-rose-600 font-bold">{formatNum(selectedZone.distances.p1)}</span>
+                  <span className="font-mono text-rose-600 font-bold">
+                    {d1Str}
+                  </span>
                 </li>
                 <li className="flex items-center justify-between text-[11px] bg-slate-50 border border-slate-200/60 px-3 py-2 rounded-lg">
                   <span className="text-slate-600 font-medium">{t('map_hazard_p1')}</span>
-                  <span className="font-mono text-rose-600 font-bold">{formatNum(selectedZone.distances.p2)}</span>
+                  <span className="font-mono text-rose-600 font-bold">
+                    {d2Str}
+                  </span>
                 </li>
                 <li className="flex items-center justify-between text-[11px] bg-slate-50 border border-slate-200/60 px-3 py-2 rounded-lg">
                   <span className="text-slate-600 font-medium">{t('map_hazard_p2')}</span>
-                  <span className="font-mono text-rose-600 font-bold">{formatNum(selectedZone.distances.p3)}</span>
+                  <span className="font-mono text-rose-600 font-bold">
+                    {d3Str}
+                  </span>
                 </li>
               </ul>
             </div>

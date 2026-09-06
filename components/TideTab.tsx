@@ -1,68 +1,63 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   Waves, 
   ArrowUp, 
   ArrowDown, 
   Clock, 
   Compass, 
-  Anchor, 
   Ship, 
   AlertTriangle,
   Activity
 } from 'lucide-react';
-import { COASTAL_TIDE_DATA } from '@/lib/api';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useLocation } from '@/lib/LocationContext';
+import { getTideDataForCity } from '@/lib/zoneData';
 
 export default function TideTab() {
-  const { t, formatNum } = useLanguage();
-  const [selectedLocation, setSelectedLocation] = useState<string>('porbandar');
+  const { lang, t, formatNum, localizeLocation } = useLanguage();
+  const { location } = useLocation();
 
-  const tide = COASTAL_TIDE_DATA[selectedLocation] || COASTAL_TIDE_DATA.porbandar;
+  const tide = getTideDataForCity(
+    location.city,
+    location.state,
+    location.lat,
+    location.lng
+  );
 
-  const getPortName = (key: string) => {
-    const locKey = `tp_${key}`;
-    const translated = t(locKey);
-    return translated !== locKey ? translated : tide.locationName;
-  };
+  const locKey = location.city.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  const flowDirStr = t(`tide_${locKey}_dir`) !== `tide_${locKey}_dir`
+    ? t(`tide_${locKey}_dir`)
+    : tide.currentTide.status === 'Rising'
+    ? `${t('dir_ene') || 'ENE'} (${t('flood_stream') || 'Flood stream'})`
+    : `${t('dir_wsw') || 'WSW'} (${t('ebb_stream') || 'Ebb stream'})`;
+
+  const advisoryStr = t(`tide_${locKey}_advisory`) !== `tide_${locKey}_advisory`
+    ? t(`tide_${locKey}_advisory`)
+    : tide.currentTide.status === 'Rising'
+    ? (t('tide_flood_advisory') || tide.advisory).replace('{city}', localizeLocation(location.city))
+    : (t('tide_ebb_advisory') || tide.advisory).replace('{city}', localizeLocation(location.city));
 
   return (
     <div className="w-full">
-      {/* Top Location & Dropdown Bar */}
+      {/* Top Location Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Waves className="w-6 h-6 text-cyan-400 drop-shadow" />
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white drop-shadow-md">
-              {getPortName(selectedLocation)} — {t('tides_title')}
+              {localizeLocation(location.city)} — {t('tides_title')}
             </h1>
           </div>
           <p className="text-sm font-medium text-slate-300 ml-8 drop-shadow">
-            {t('tides_subtitle')}
+            {t('tides_subtitle')} · {localizeLocation(location.city)}, {localizeLocation(location.state)}
           </p>
         </div>
 
-        {/* Dropdown Selector */}
-        <div className="flex items-center gap-3">
-          <label htmlFor="tide-select" className="text-xs font-semibold text-slate-200 drop-shadow">
-            {t('select_port')}:
-          </label>
-          <div className="relative">
-            <select
-              id="tide-select"
-              value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e.target.value)}
-              className="appearance-none px-4 py-2 pr-9 rounded-xl bg-white/85 hover:bg-white border border-slate-200/90 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 backdrop-blur-md cursor-pointer shadow-sm transition"
-            >
-              <option value="porbandar" className="bg-white text-slate-800">{t('tp_porbandar')}</option>
-              <option value="veraval" className="bg-white text-slate-800">{t('tp_veraval')}</option>
-              <option value="dwarka" className="bg-white text-slate-800">{t('tp_dwarka')}</option>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-cyan-600">
-              <Anchor className="w-4 h-4" />
-            </div>
-          </div>
+        <div className="px-3.5 py-1.5 rounded-xl bg-white/85 border border-slate-200/90 text-xs font-semibold text-slate-700 backdrop-blur-md shadow-sm">
+          <span>{t('tidal_harmonic_epoch') || 'Survey of India Tidal Harmonic Epoch'}</span>
         </div>
       </div>
 
@@ -97,14 +92,14 @@ export default function TideTab() {
             </div>
 
             {/* Current Speed Block */}
-            <div className="border-l border-slate-200 pl-6 space-y-2">
+            <div className="border-t border-slate-200 pt-4 sm:border-t-0 sm:border-l sm:pl-6 sm:pt-0 w-full sm:w-auto space-y-2">
               <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
                 <Activity className="w-4 h-4 text-cyan-600" />
-                <span>{t('flow_velocity')}: <strong className="text-slate-800 font-bold font-mono">{formatNum(tide.currentTide.currentSpeedKnots)} knots</strong></span>
+                <span>{t('flow_velocity')}: <strong className="text-slate-800 font-bold font-mono">{formatNum(tide.currentTide.currentSpeedKnots)} {t('knots')}</strong></span>
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
                 <Compass className="w-4 h-4 text-sky-600" />
-                <span>{t('flow_direction')}: <strong className="text-slate-800 font-bold">{tide.currentTide.direction}</strong></span>
+                <span>{t('flow_direction')}: <strong className="text-slate-800 font-bold">{flowDirStr}</strong></span>
               </div>
             </div>
           </div>
@@ -123,7 +118,7 @@ export default function TideTab() {
                   {formatNum(tide.nextHighTide.time)}
                 </div>
                 <span className="text-xs text-cyan-700 font-medium">
-                  Peak Height: {formatNum(tide.nextHighTide.heightMeters)} m
+                  {t('peak_height')} {formatNum(tide.nextHighTide.heightMeters)} m
                 </span>
               </div>
               <div className="w-12 h-12 rounded-2xl bg-cyan-50 border border-cyan-200 flex items-center justify-center text-cyan-700 font-bold text-xs text-center">
@@ -142,7 +137,7 @@ export default function TideTab() {
                   {formatNum(tide.nextLowTide.time)}
                 </div>
                 <span className="text-xs text-amber-700 font-medium">
-                  Trough Depth: {formatNum(tide.nextLowTide.heightMeters)} m
+                  {t('trough_depth')} {formatNum(tide.nextLowTide.heightMeters)} m
                 </span>
               </div>
               <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 font-bold text-xs text-center">
@@ -155,7 +150,7 @@ export default function TideTab() {
           {/* Hourly Tide Graph */}
           <div className="card space-y-3">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 block">
-              Tidal Height Harmonic Curve (Next 8 Hours)
+              {t('tidal_harmonic_curve')}
             </span>
             <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 text-center">
               {tide.hourlyTide.map((item, idx) => (
@@ -180,20 +175,20 @@ export default function TideTab() {
           <div className="card space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Vessel Navigation Advisory
+                {t('vessel_nav_advisory')}
               </span>
               <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-cyan-50 text-cyan-700 border border-cyan-200">
-                Active Gate
+                {t('active_gate')}
               </span>
             </div>
 
             <div className="card-inner space-y-2">
               <div className="flex items-center gap-2 text-cyan-700 text-sm font-semibold">
                 <Ship className="w-4 h-4" />
-                <span>Harbor Passage & Draft Guidance</span>
+                <span>{t('harbor_passage_guidance')}</span>
               </div>
               <p className="text-xs leading-relaxed text-slate-700 font-normal">
-                {tide.advisory}
+                {advisoryStr}
               </p>
             </div>
 
@@ -201,15 +196,15 @@ export default function TideTab() {
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200/70 text-xs">
               <div className="flex items-center gap-2 text-slate-600">
                 <Clock className="w-4 h-4 text-cyan-600" />
-                <span className="font-medium">Optimal Docking Gate:</span>
+                <span className="font-medium">{t('optimal_docking_gate')}</span>
               </div>
               <span className="font-bold text-slate-800 font-mono">{formatNum(tide.favorableDockingWindow)}</span>
             </div>
 
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/60 text-xs text-slate-600 space-y-1">
-              <span className="font-semibold text-slate-700 block">Hydrodynamic Parameters:</span>
+              <span className="font-semibold text-slate-700 block">{t('hydrodynamic_parameters')}</span>
               <p className="text-[11px] text-slate-500">
-                Semidiurnal tidal cycle reference based on Indian Tide Tables. Slack water window occurs approximately 35 mins before maximum high water.
+                {t('tide_cycle_note')}
               </p>
             </div>
           </div>
