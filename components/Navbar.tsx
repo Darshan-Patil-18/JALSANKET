@@ -38,7 +38,8 @@ export default function Navbar({ activeTab, onChange }: NavbarProps) {
 
   return (
     <nav className="sticky top-0 z-50 w-full backdrop-blur-xl bg-white/85 border-b border-slate-200/80 shadow-sm select-none">
-      <div className="w-full max-w-[1650px] mx-auto px-3 sm:px-6 lg:px-8">
+      {/* Extra right padding on desktop to accommodate the fixed chat orb (top-right corner) */}
+      <div className="w-full max-w-[1650px] mx-auto px-3 sm:px-6 lg:px-8 md:pr-16 lg:pr-20">
         
         {/* Main Header Row */}
         <div className="flex items-center justify-between gap-2 md:gap-4 py-2.5 md:py-3 min-h-[58px] md:min-h-[66px]">

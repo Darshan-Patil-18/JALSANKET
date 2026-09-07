@@ -9,10 +9,14 @@ import HazardTab from '@/components/HazardTab';
 import TideTab from '@/components/TideTab';
 import EmergencyTab from '@/components/EmergencyTab';
 import GlobalLocationBar from '@/components/GlobalLocationBar';
+import ChatOrb from '@/components/ChatOrb';
+import ChatPanel from '@/components/ChatPanel';
+import LocationPermissionModal from '@/components/LocationPermissionModal';
 
 import { WeatherData, AqiData } from '@/lib/types';
 import { fetchLiveWeatherData, fetchLiveAqiData } from '@/lib/api';
 import { useLocation } from '@/lib/LocationContext';
+import { useChat } from '@/lib/ChatContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RefreshCw } from 'lucide-react';
 
@@ -23,6 +27,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   const { location } = useLocation();
+  const { closeChat, isOpen } = useChat();
 
   // Track previous fetch coords to avoid duplicate fetches
   const prevFetchRef = useRef<string>('');
@@ -70,6 +75,19 @@ export default function Home() {
     }
   }, [location.lat, location.lng, location.city, location.source, location.userRealCoords, location.userRealLocationName, loadData]);
 
+  // AUTO-CLOSE chatbot when navigating to SOS / Emergency tab.
+  // This does NOT clear chat history — just hides the panel.
+  // Chatbot will reopen with full history when user switches to any other tab.
+  useEffect(() => {
+    if (activeTab === 'emergency' && isOpen) {
+      closeChat();
+    }
+  }, [activeTab, isOpen, closeChat]);
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+  };
+
   const tabVariants = {
     initial: { opacity: 0, y: 10 },
     animate: { opacity: 1, y: 0  },
@@ -79,7 +97,7 @@ export default function Home() {
   return (
     <>
       {/* ── Full-width sticky Navbar: logo left, tabs right ── */}
-      <Navbar activeTab={activeTab} onChange={setActiveTab} />
+      <Navbar activeTab={activeTab} onChange={handleTabChange} />
 
       {/* ── Page content ── */}
       <main className="relative z-10 w-full max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-10 py-4 sm:py-8 pb-24">
@@ -131,7 +149,13 @@ export default function Home() {
         )}
       </main>
 
+      {/* ── AI Chatbot: orb trigger + persistent chat panel ── */}
+      {/* Chat panel stays open across tab switches; auto-hides on SOS tab without clearing history */}
+      <ChatOrb />
+      <ChatPanel />
 
+      {/* ── Location Permission Modal (first visit only) ── */}
+      <LocationPermissionModal />
     </>
   );
 }

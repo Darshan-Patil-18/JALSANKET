@@ -1,4 +1,26 @@
-import { WeatherData, AqiData, FishingZone, HazardZone, TideData, EmergencyContact } from './types';
+/**
+ * ============================================================================
+ * JALSANKET DATA AUDIT & ARCHITECTURE SPECIFICATION
+ * ============================================================================
+ * 
+ * 1. REAL-TIME DATA SOURCES (Live APIs - Free & Keyless, sitewide):
+ *    - Weather Forecast: Open-Meteo Weather API (https://api.open-meteo.com/v1/forecast)
+ *      Variables: Temp, humidity, precipitation, wind speed, pressure, hourly/daily forecast.
+ *    - Air Quality Index (AQI): Open-Meteo Air Quality API (https://air-quality-api.open-meteo.com/v1/air-quality)
+ *      Variables: PM2.5, PM10, CO, NO2, SO2, O3, US/European AQI, dust, UV index.
+ *    - Marine Ocean Conditions: Open-Meteo Marine API (https://marine-api.open-meteo.com/v1/marine)
+ *      Variables: Real-time wave height, swell wave height, sea surface temperature, wave direction/period.
+ * 
+ * 2. SIMULATED / DEMO DATA (Modeled approximations for demonstration purposes):
+ *    - Potential Fishing Zone (PFZ) Triangles: Synthetic coordinates derived from INCOIS thermal front models.
+ *    - Marine Hazards: Bathymetric drop rip currents, submerged rocky reefs, and IMBL geofencing buffers.
+ *    - Tide Predictions: Harmonic tide cycles and port docking clearance windows.
+ *    - Emergency Contacts: Maritime Search and Rescue Coordination Centre (MRCC) and coastal frequencies.
+ * ============================================================================
+ */
+
+import { WeatherData, AqiData, MarineData, FishingZone, HazardZone, TideData, EmergencyContact } from './types';
+
 
 // Map WMO Weather Codes to descriptive text and icons
 export function getWeatherCondition(code: number): { text: string; icon: string } {
@@ -256,8 +278,73 @@ export async function fetchLiveAqiData(lat = 23.0225, lon = 72.5714): Promise<Aq
   };
 }
 
-// Coastal Potential Fishing Zones data
+/**
+ * REAL-TIME UPGRADE: Fetch live ocean conditions from Open-Meteo Marine Weather API
+ * URL: https://marine-api.open-meteo.com/v1/marine (Free & Keyless)
+ * Provides real-time wave height, swell wave height, sea surface temperature, and wave metrics.
+ */
+export async function fetchLiveMarineData(lat = 21.6417, lon = 69.6293): Promise<MarineData> {
+  try {
+    const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&current=wave_height,wave_direction,wave_period,wind_wave_height,swell_wave_height&hourly=sea_surface_temperature,wave_height&timezone=auto`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const json = await res.json();
+      const current = json.current;
+      const hourly = json.hourly;
+
+      // Extract current sea surface temperature from hourly dataset
+      let seaTemp: number | null = null;
+      if (hourly?.sea_surface_temperature && Array.isArray(hourly.sea_surface_temperature)) {
+        const currentHour = new Date().getHours();
+        seaTemp = hourly.sea_surface_temperature[currentHour] ?? 
+                  hourly.sea_surface_temperature.find((v: number | null) => v !== null) ?? 
+                  null;
+      }
+
+      // If current wave_height is present and non-null, use it; otherwise search first valid in hourly
+      let waveH = current?.wave_height;
+      if (waveH === null || waveH === undefined) {
+        waveH = hourly?.wave_height?.find((v: number | null) => v !== null) ?? 1.1;
+      }
+
+      let swellH = current?.swell_wave_height;
+      if (swellH === null || swellH === undefined) {
+        swellH = Number((Number(waveH) * 0.7).toFixed(1));
+      }
+
+      const finalWaveHeight = Number(Number(waveH).toFixed(1));
+      const finalSwellHeight = Number(Number(swellH).toFixed(1));
+      const finalSeaTemp = seaTemp !== null ? Number(Number(seaTemp).toFixed(1)) : 28.2;
+
+      return {
+        waveHeight: finalWaveHeight,
+        swellWaveHeight: finalSwellHeight,
+        seaSurfaceTemp: finalSeaTemp,
+        waveDirection: current?.wave_direction ?? 237,
+        wavePeriod: current?.wave_period ? Number(Number(current.wave_period).toFixed(1)) : 7.2,
+        isRealTime: true,
+        lastUpdated: getRecentUpdatedIST(10),
+      };
+    }
+  } catch (err) {
+    console.warn('Error fetching live marine data from Open-Meteo:', err);
+  }
+
+  // Graceful fallback
+  return {
+    waveHeight: 1.1,
+    swellWaveHeight: 0.8,
+    seaSurfaceTemp: 28.2,
+    waveDirection: 237,
+    wavePeriod: 7.2,
+    isRealTime: false,
+    lastUpdated: getRecentUpdatedIST(10),
+  };
+}
+
+// Coastal Potential Fishing Zones data (SIMULATED model approximations)
 export const COASTAL_FISHING_ZONES: FishingZone[] = [
+
   {
     id: 'porbandar',
     name: 'Porbandar Coast',

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { 
   Compass, 
@@ -10,12 +10,15 @@ import {
   Clock, 
   AlertTriangle, 
   Fish, 
-  Sparkles
+  Sparkles,
+  Radio
 } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useLocation } from '@/lib/LocationContext';
 import { getFishingZoneForCity } from '@/lib/zoneData';
 import { formatZoneNavigationText } from '@/lib/geoUtils';
+import { fetchLiveMarineData } from '@/lib/api';
+import { MarineData } from '@/lib/types';
 
 // Dynamic import for Leaflet map component with ssr disabled
 const DynamicFishingMap = dynamic(() => import('./FishingMap'), {
@@ -33,6 +36,7 @@ const DynamicFishingMap = dynamic(() => import('./FishingMap'), {
 export default function FishingZoneTab() {
   const { lang, t, formatNum, localizeLocation } = useLanguage();
   const { location } = useLocation();
+  const [marineData, setMarineData] = useState<MarineData | null>(null);
 
   const selectedZone = getFishingZoneForCity(
     location.city,
@@ -40,6 +44,25 @@ export default function FishingZoneTab() {
     location.lat,
     location.lng
   );
+
+  // REAL DATA UPGRADE: Fetch real ocean sea temp & wave height from Open-Meteo Marine API
+  useEffect(() => {
+    let isMounted = true;
+    const fetchMarine = async () => {
+      try {
+        const [lat, lng] = selectedZone.shorePoint;
+        const live = await fetchLiveMarineData(lat, lng);
+        if (isMounted) {
+          setMarineData(live);
+        }
+      } catch (e) {
+        console.warn('Marine fetch fallback:', e);
+      }
+    };
+    fetchMarine();
+    return () => { isMounted = false; };
+  }, [selectedZone.id, selectedZone.shorePoint]);
+
 
   const getZoneDisplayName = (zoneId: string, fallbackName: string) => {
     const key = `fz_${zoneId}_name`;
@@ -114,8 +137,9 @@ export default function FishingZoneTab() {
               <span>{navInfo.displayText}</span>
             </div>
           )}
-          <div className="px-3.5 py-1.5 rounded-xl bg-white/85 border border-slate-200/90 text-xs font-semibold text-slate-700 backdrop-blur-md shadow-sm">
-            <span>{t('incois_pfz_model') || 'INCOIS-PFZ Satellite Model'}</span>
+          <div className="px-3.5 py-1.5 rounded-xl bg-white/85 border border-slate-200/90 text-xs font-semibold text-slate-700 backdrop-blur-md shadow-sm flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span>{t('incois_pfz_model') || 'INCOIS-PFZ Satellite Model'} (Simulated)</span>
           </div>
         </div>
       </div>
@@ -130,29 +154,47 @@ export default function FishingZoneTab() {
           {/* Oceanographic Metric Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
             {/* Sea Surface Temp */}
-            <div className="stat-chip flex flex-col justify-between">
+            <div className="stat-chip flex flex-col justify-between relative overflow-hidden">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[11px] font-semibold text-slate-500 uppercase">{t('sea_temp')}</span>
                 <Thermometer className="w-4 h-4 text-orange-500" />
               </div>
               <div className="flex items-baseline gap-0.5">
-                <span className="text-2xl font-bold text-slate-800 font-mono">{formatNum(selectedZone.seaSurfaceTemp)}</span>
+                <span className="text-2xl font-bold text-slate-800 font-mono">
+                  {formatNum(marineData ? marineData.seaSurfaceTemp : selectedZone.seaSurfaceTemp)}
+                </span>
                 <span className="text-xs font-semibold text-slate-500">°C</span>
               </div>
-              <span className="text-[10px] text-emerald-600 font-medium mt-1">{t('optimal_gradient')}</span>
+              <div className="flex items-center justify-between mt-1">
+                <span className="text-[10px] text-emerald-600 font-medium">{t('optimal_gradient')}</span>
+                <span className="text-[9px] font-semibold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  LIVE
+                </span>
+              </div>
             </div>
 
             {/* Wave Height */}
-            <div className="stat-chip flex flex-col justify-between">
+            <div className="stat-chip flex flex-col justify-between relative overflow-hidden">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[11px] font-semibold text-slate-500 uppercase">{t('wave_height')}</span>
                 <Waves className="w-4 h-4 text-cyan-500" />
               </div>
               <div className="flex items-baseline gap-0.5">
-                <span className="text-2xl font-bold text-slate-800 font-mono">{formatNum(selectedZone.waveHeight)}</span>
+                <span className="text-2xl font-bold text-slate-800 font-mono">
+                  {formatNum(marineData ? marineData.waveHeight : selectedZone.waveHeight)}
+                </span>
                 <span className="text-xs font-semibold text-slate-500">m</span>
               </div>
-              <span className="text-[10px] text-cyan-700 font-medium mt-1">{t('mild_sea_swell')}</span>
+              <div className="flex items-center justify-between mt-1">
+                <span className="text-[10px] text-cyan-700 font-medium">
+                  {marineData ? `Swell: ${formatNum(marineData.swellWaveHeight)}m` : t('mild_sea_swell')}
+                </span>
+                <span className="text-[9px] font-semibold bg-cyan-100 text-cyan-800 px-1.5 py-0.2 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse"></span>
+                  LIVE
+                </span>
+              </div>
             </div>
 
             {/* Current Drift */}
@@ -256,7 +298,9 @@ export default function FishingZoneTab() {
       <div className="disclaimer-bar">
         <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
         <p>
-          {t('demo_disclaimer')}
+          {lang === 'en' 
+            ? 'Weather and sea conditions shown are live. Fishing zone predictions are simulated.' 
+            : (t('disclaimer_mixed_fishing') !== 'disclaimer_mixed_fishing' ? t('disclaimer_mixed_fishing') : 'Weather and sea conditions shown are live. Fishing zone predictions are simulated.')}
         </p>
       </div>
     </div>

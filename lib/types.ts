@@ -143,3 +143,22 @@ export interface EmergencyContact {
   phone: string;
   status: '24/7 Active' | 'Standby';
 }
+
+export interface MarineData {
+  waveHeight: number;
+  swellWaveHeight: number;
+  seaSurfaceTemp: number;
+  waveDirection?: number;
+  wavePeriod?: number;
+  isRealTime: boolean;
+  lastUpdated?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: number;
+  modelUsed?: string;
+}
+

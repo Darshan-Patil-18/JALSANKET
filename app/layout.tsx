@@ -3,6 +3,7 @@ import './globals.css';
 import BackgroundVideo from '@/components/BackgroundVideo';
 import { LanguageProvider } from '@/lib/LanguageContext';
 import { LocationProvider } from '@/lib/LocationContext';
+import { ChatProvider } from '@/lib/ChatContext';
 
 export const metadata: Metadata = {
   title: 'JalSanket | Real-time Coastal AQI, Weather & PFZ Intelligence',
@@ -28,11 +29,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Global Providers */}
         <LanguageProvider>
           <LocationProvider>
-            {children}
+            {/* ChatProvider wraps everything so chat state persists across all tab switches */}
+            <ChatProvider>
+              {children}
+            </ChatProvider>
           </LocationProvider>
         </LanguageProvider>
       </body>
     </html>
   );
 }
+
 

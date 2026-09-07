@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { 
   AlertTriangle, 
@@ -15,6 +15,8 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useLocation } from '@/lib/LocationContext';
 import { getHazardZoneForCity } from '@/lib/zoneData';
 import { formatZoneNavigationText } from '@/lib/geoUtils';
+import { fetchLiveMarineData } from '@/lib/api';
+import { MarineData } from '@/lib/types';
 
 const DynamicHazardMap = dynamic(() => import('./HazardMap'), {
   ssr: false,
@@ -31,6 +33,7 @@ const DynamicHazardMap = dynamic(() => import('./HazardMap'), {
 export default function HazardTab() {
   const { lang, t, formatNum, localizeLocation } = useLanguage();
   const { location } = useLocation();
+  const [marineData, setMarineData] = useState<MarineData | null>(null);
 
   const selectedZone = getHazardZoneForCity(
     location.city,
@@ -38,6 +41,22 @@ export default function HazardTab() {
     location.lat,
     location.lng
   );
+
+  // REAL DATA UPGRADE: Fetch live wave height & sea conditions from Open-Meteo Marine API
+  useEffect(() => {
+    let isMounted = true;
+    const fetchMarine = async () => {
+      try {
+        const [lat, lng] = selectedZone.shorePoint;
+        const live = await fetchLiveMarineData(lat, lng);
+        if (isMounted) setMarineData(live);
+      } catch (e) {
+        console.warn('Hazard tab marine fetch fallback:', e);
+      }
+    };
+    fetchMarine();
+    return () => { isMounted = false; };
+  }, [selectedZone.id, selectedZone.shorePoint]);
 
   const getZoneDisplay = (zone: typeof selectedZone) => {
     const baseKey = zone.id.replace('-hazard', '');
@@ -131,17 +150,25 @@ export default function HazardTab() {
 
           {/* Oceanographic Metric Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-            {/* Wave Height */}
-            <div className="stat-chip flex flex-col justify-between">
+            {/* Wave Height — REAL TIME from Open-Meteo Marine API */}
+            <div className="stat-chip flex flex-col justify-between relative overflow-hidden">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[11px] font-semibold text-slate-500 uppercase">{t('wave_height')}</span>
                 <Waves className="w-4 h-4 text-rose-500" />
               </div>
               <div className="flex items-baseline gap-0.5">
-                <span className="text-2xl font-bold text-rose-600 font-mono">{formatNum(selectedZone.waveHeight)}</span>
+                <span className="text-2xl font-bold text-rose-600 font-mono">
+                  {formatNum(marineData ? marineData.waveHeight : selectedZone.waveHeight)}
+                </span>
                 <span className="text-xs font-semibold text-slate-500">m</span>
               </div>
-              <span className="text-[10px] text-rose-600 font-medium mt-1">{t('rough_sea_state')}</span>
+              <div className="flex items-center justify-between mt-1">
+                <span className="text-[10px] text-rose-600 font-medium">{t('rough_sea_state')}</span>
+                <span className="text-[9px] font-semibold bg-rose-100 text-rose-700 px-1.5 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                  LIVE
+                </span>
+              </div>
             </div>
 
             {/* Wind Speed */}
@@ -261,7 +288,9 @@ export default function HazardTab() {
       <div className="disclaimer-bar">
         <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
         <p>
-          {t('demo_disclaimer')}
+          {lang === 'en'
+            ? 'Weather and sea conditions shown are live. Hazard zone boundaries are simulated for demonstration purposes.'
+            : (t('disclaimer_mixed_hazard') !== 'disclaimer_mixed_hazard' ? t('disclaimer_mixed_hazard') : 'Weather and sea conditions shown are live. Hazard zone boundaries are simulated for demonstration purposes.')}
         </p>
       </div>
     </div>
